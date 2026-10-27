@@ -4,7 +4,9 @@ import {
   type PointUm,
   type RectangleEntity,
   type WorkAreaSettings,
+  type EditableEntity,
 } from './model';
+import { polygonRings, polygonWorldParts } from './polygonGeometry';
 
 export interface ScenePoint {
   x: number;
@@ -191,11 +193,13 @@ export function isRectangleInWorkArea(
 }
 
 export function isEntityInWorkArea(
-  entity: RectangleEntity | LineEntity,
+  entity: EditableEntity,
   workArea: WorkAreaSettings,
 ): boolean {
-  return entity.kind === 'rectangle'
-    ? isRectangleInWorkArea(entity, workArea)
-    : isPointInWorkArea(entity.start, workArea) && isPointInWorkArea(entity.end, workArea);
+  if (entity.kind === 'rectangle') return isRectangleInWorkArea(entity, workArea);
+  if (entity.kind === 'polygon') {
+    return polygonRings(polygonWorldParts(entity)).every((ring) => ring.every((point) => isPointInWorkArea(point, workArea)));
+  }
+  return isPointInWorkArea(entity.start, workArea) && isPointInWorkArea(entity.end, workArea);
 }
 

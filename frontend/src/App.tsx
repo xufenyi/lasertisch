@@ -6,6 +6,7 @@ import { EditorToolbar } from './components/EditorToolbar';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { CanvasSurface, type CanvasSurfaceHandle } from './editor/CanvasSurface';
 import { isFitWorkAreaShortcut, toolForShortcut } from './editor/toolShortcuts';
+import { handlePolygonKey } from './editor/polygonKeyboard';
 import { useEditorStore } from './state/editorStore';
 import { usePlanningStore } from './planning/planningStore';
 import { useToolpathPlanning } from './planning/useToolpathPlanning';
@@ -77,6 +78,7 @@ export default function App() {
         target?.isContentEditable ||
         Boolean(target?.closest('[role="listbox"], [role="menu"]'));
       if (editing) return;
+      if (handlePolygonKey(event, t('tool.polygon'))) return;
       const modifier = event.ctrlKey || event.metaKey;
       if (modifier && !event.altKey && event.key.toLowerCase() === 'z') {
         event.preventDefault();
@@ -104,7 +106,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deleteSelected, redo, setSelection, setTool, undo]);
+  }, [deleteSelected, redo, setSelection, setTool, undo, t]);
 
   return (
     <ThemeProvider theme={theme}>

@@ -22,7 +22,7 @@
     "mode": "contour",
     "markSpeedUmPerSec": 900000,
     "fillAngleTenthsDeg": 0,
-    "hatchSpacingUm": 160,
+    "hatchSpacingUm": 80,
     "contourDirection": "clockwise"
   },
   "globalSettings": {
@@ -40,7 +40,7 @@
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
         "fillAngleTenthsDeg": 300,
-        "hatchSpacingUm": 160,
+        "hatchSpacingUm": 80,
         "contourDirection": "clockwise"
       },
       "kind": "rectangle",
@@ -61,7 +61,7 @@
         "mode": "contour",
         "markSpeedUmPerSec": 500000,
         "fillAngleTenthsDeg": 0,
-        "hatchSpacingUm": 160,
+        "hatchSpacingUm": 80,
         "contourDirection": "clockwise"
       },
       "kind": "line",

@@ -41,6 +41,10 @@ def make_line() -> LineEntity:
     )
 
 
+def test_default_process_uses_point_zero_eight_mm_hatch_spacing() -> None:
+    assert ProcessSpec().hatch_spacing_um == 80
+
+
 def test_project_round_trip_preserves_integer_micrometres() -> None:
     document = ProjectDocument(
         document_id=DOCUMENT_ID,

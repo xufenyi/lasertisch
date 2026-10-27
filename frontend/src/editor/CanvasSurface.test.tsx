@@ -1,0 +1,120 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { Point, type FabricObject } from 'fabric';
+import fixture from '../../../fixtures/polygons-v2.lasertisch.json';
+import { parseProjectDocument } from '../domain/projectFiles';
+import { worldToScene } from '../domain/geometry';
+import { polygonWorldPoint } from '../domain/polygonGeometry';
+import type { PointUm, PolygonEntity } from '../domain/model';
+import { useEditorStore } from '../state/editorStore';
+import { handlePolygonKey } from './polygonKeyboard';
+import { CanvasSurface } from './CanvasSurface';
+
+// The real component's event handlers run against a small rendering surface double.
+// Native browser drawing and pointer capture remain part of the manual acceptance.
+interface TestCanvas {
+  fire: (name: string, event: unknown) => void;
+  getActiveObject: () => FabricObject | undefined;
+}
+const drawing = vi.hoisted(() => ({ canvas: null as TestCanvas | null }));
+vi.mock('fabric', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fabric')>();
+  class Canvas {
+    viewportTransform = [1,0,0,1,0,0];
+    width = 800; height = 800; objects: FabricObject[] = [];
+    active: FabricObject | undefined;
+    listeners = new Map<string, ((event: unknown) => void)[]>();
+    constructor() { drawing.canvas = this; }
+    on(name: string, callback: (event: unknown) => void) { this.listeners.set(name, [...this.listeners.get(name) ?? [], callback]); }
+    off(name: string) { this.listeners.delete(name); }
+    fire(name: string, event: unknown) { this.listeners.get(name)?.forEach((callback) => callback(event)); }
+    getWidth() { return this.width; } getHeight() { return this.height; }
+    getZoom() { return this.viewportTransform[0]; }
+    setDimensions(value: {width:number;height:number}) { this.width=value.width; this.height=value.height; }
+    setViewportTransform(value: number[]) { this.viewportTransform=value; }
+    requestRenderAll() { this.fire('before:render', {}); this.fire('after:render', {}); }
+    getObjects() { return this.objects; }
+    add(...objects: FabricObject[]) { this.objects.push(...objects); }
+    remove(object: FabricObject) { this.objects = this.objects.filter((item) => item !== object); }
+    clear() { this.objects=[]; this.active=undefined; }
+    setActiveObject(object: FabricObject) { this.active=object; }
+    discardActiveObject() { this.active=undefined; }
+    getActiveObject() { return this.active; }
+    setCursor() {}
+    dispose() { return Promise.resolve(); }
+  }
+  return {...actual, Canvas};
+});
+
+const store = () => useEditorStore.getState();
+const entity = () => store().document.entities[2] as PolygonEntity;
+const point = (world: PointUm) => new Point(worldToScene(world, store().document.workArea));
+function fire(name: string, world: PointUm, extra = {}) {
+  act(() => drawing.canvas!.fire(name, { e: {button:0,clientX:0,clientY:0,shiftKey:false,...extra}, scenePoint:point(world) }));
+}
+function click(world: PointUm) { fire('mouse:down',world); fire('mouse:up',world); }
+function startEditing() { act(() => store().startPolygonEdit(entity().id)); }
+
+beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, { get: () => () => {} }) as CanvasRenderingContext2D);
+  store().loadDocument(parseProjectDocument(JSON.stringify(fixture)));
+  render(<CanvasSurface />);
+});
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+describe('polygon canvas interactions', () => {
+  it('creates a polygon by clicking points and closing at its first point', () => {
+    act(() => store().setTool('polygon'));
+    click({xUm:0,yUm:0}); click({xUm:10_000,yUm:0}); click({xUm:0,yUm:10_000});
+    expect(store().polygonDraft).toHaveLength(3); expect(store().undoStack).toHaveLength(0);
+    click({xUm:0,yUm:0});
+    expect(store().document.entities).toHaveLength(5); expect(store().undoStack).toHaveLength(1);
+    expect(store().tool).toBe('select');
+  });
+  it('does not add clicks outside the work area or leave a draft after cancellation', () => {
+    act(() => store().setTool('polygon'));
+    click({xUm:100_000,yUm:0}); expect(store().polygonDraft).toHaveLength(0);
+    click({xUm:0,yUm:0});
+    act(() => { handlePolygonKey({key:'Escape',preventDefault(){}},'Polygon'); });
+    expect(store().polygonDraft).toHaveLength(0); expect(store().document.entities).toHaveLength(4);
+  });
+  it('drags a rotated hole vertex with transient preview and one undo step', () => {
+    startEditing(); expect(drawing.canvas!.getActiveObject()).toBeUndefined();
+    const original = store().document;
+    const start = polygonWorldPoint(entity(),entity().parts[0].holes[0][0]);
+    const target = polygonWorldPoint(entity(),{xUm:-7000,yUm:-6000});
+    fire('mouse:down',start); fire('mouse:move',target);
+    expect(store().document).toBe(original);
+    expect(store().transientEntities[entity().id]).toBeDefined();
+    fire('mouse:up',target);
+    expect(entity().parts[0].holes[0][0]).toEqual({xUm:-7000,yUm:-6000});
+    expect(store().undoStack).toHaveLength(1); expect(store().transientEntities).toEqual({});
+    act(() => store().undo()); expect(store().document).toEqual(original);
+  });
+  it('rejects dragging a hole outside its exterior and keeps the history unchanged', () => {
+    startEditing(); const original = store().document;
+    fire('mouse:down',polygonWorldPoint(entity(),entity().parts[0].holes[0][0]));
+    const outside = polygonWorldPoint(entity(),{xUm:-30_000,yUm:-20_000});
+    fire('mouse:move',outside); fire('mouse:up',outside);
+    expect(store().document).toBe(original); expect(store().undoStack).toHaveLength(0);
+    expect(store().status).toBe('error.invalidPolygon');
+  });
+  it('leaves a simple click unchanged and inserts a vertex by double-clicking an edge', () => {
+    startEditing(); const original = store().document;
+    click(polygonWorldPoint(entity(),entity().parts[0].holes[0][0]));
+    expect(store().document).toBe(original); expect(store().undoStack).toHaveLength(0);
+    fire('mouse:dblclick',polygonWorldPoint(entity(),{xUm:-9000,yUm:0}));
+    expect(entity().parts[0].holes[0]).toHaveLength(5); expect(store().undoStack).toHaveLength(1);
+  });
+  it('cancels an in-progress drag on Escape without committing its preview', () => {
+    startEditing(); const original = store().document;
+    fire('mouse:down',polygonWorldPoint(entity(),entity().parts[0].holes[0][0]));
+    const target = polygonWorldPoint(entity(),{xUm:-7000,yUm:-6000});
+    fire('mouse:move',target);
+    act(() => { handlePolygonKey({key:'Escape',preventDefault(){}},'Polygon'); });
+    fire('mouse:up',target);
+    expect(store().document).toBe(original); expect(store().transientEntities).toEqual({});
+    expect(store().undoStack).toHaveLength(0);
+  });
+});

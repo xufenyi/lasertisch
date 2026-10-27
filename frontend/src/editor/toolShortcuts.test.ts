@@ -7,10 +7,10 @@ import {
 } from './toolShortcuts';
 
 describe('tool shortcuts', () => {
-  it('maps the four editor tools to their advertised single keys', () => {
-    expect(TOOL_SHORTCUT_KEY).toEqual({ select: 'V', pan: 'H', line: 'L', rectangle: 'R' });
-    expect(['V', 'h', 'L', 'r'].map(toolForShortcut))
-      .toEqual(['select', 'pan', 'line', 'rectangle']);
+  it('maps the editor tools to their advertised single keys', () => {
+    expect(TOOL_SHORTCUT_KEY).toEqual({ select: 'V', pan: 'H', line: 'L', rectangle: 'R', polygon: 'P' });
+    expect(['V', 'h', 'L', 'r', 'P'].map(toolForShortcut))
+      .toEqual(['select', 'pan', 'line', 'rectangle', 'polygon']);
   });
 
   it('recognizes the Photoshop-style fit shortcut on Windows and macOS', () => {

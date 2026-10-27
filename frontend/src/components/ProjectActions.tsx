@@ -25,8 +25,8 @@ export function ProjectActions() {
   const inputRef = useRef<HTMLInputElement>(null);
   const document = useEditorStore((state) => state.document);
   const isDirty = useEditorStore((state) => state.isDirty);
-  const canUndo = useEditorStore((state) => state.undoStack.length > 0);
-  const canRedo = useEditorStore((state) => state.redoStack.length > 0);
+  const canUndo = useEditorStore((state) => state.tool === 'polygon' ? state.polygonDraft.length > 0 : state.undoStack.length > 0);
+  const canRedo = useEditorStore((state) => state.tool !== 'polygon' && state.redoStack.length > 0);
   const newProject = useEditorStore((state) => state.newProject);
   const loadDocument = useEditorStore((state) => state.loadDocument);
   const markSaved = useEditorStore((state) => state.markSaved);

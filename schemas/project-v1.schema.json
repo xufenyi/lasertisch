@@ -242,7 +242,7 @@
           "type": "integer"
         },
         "hatchSpacingUm": {
-          "default": 160,
+          "default": 80,
           "exclusiveMinimum": 0,
           "title": "Hatchspacingum",
           "type": "integer"

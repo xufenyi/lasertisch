@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createEmptyDocument, DEFAULT_PROCESS, type LineEntity } from '../domain/model';
 import { isValidEntityName, useEditorStore } from './editorStore';
+import polygonProject from '../../../fixtures/polygons-v2.lasertisch.json';
+import { parseProjectDocument, serializeProjectDocument } from '../domain/projectFiles';
+import type { PolygonEntity } from '../domain/model';
 
 const line: LineEntity = {
   id: 'line-1',
@@ -33,6 +36,10 @@ beforeEach(() => {
 describe('canonical editor store', () => {
   it('starts with a 5 mm grid interval', () => {
     expect(useEditorStore.getState().document.grid.spacingUm).toBe(5_000);
+  });
+
+  it('starts new objects with a 0.08 mm hatch spacing', () => {
+    expect(useEditorStore.getState().document.defaultProcess.hatchSpacingUm).toBe(80);
   });
 
   it('adds an entity to geometry and processing order together', () => {
@@ -119,6 +126,34 @@ describe('canonical editor store', () => {
     useEditorStore.getState().moveProcessingOrder(second.id, -1);
     expect(useEditorStore.getState().document.processingOrder).toEqual([second.id, line.id]);
     expect(useEditorStore.getState().document.entities.map((entity) => entity.id)).toEqual([line.id, second.id]);
+  });
+
+  it('commits one polygon drag, undoes it, and retains the new shape on save', () => {
+    useEditorStore.getState().loadDocument(parseProjectDocument(JSON.stringify(polygonProject)));
+    const original = useEditorStore.getState().document;
+    const entity = original.entities[0] as PolygonEntity;
+    const update = { ...entity, position: { xUm:-40_000, yUm:45_000 }, rotationTenthsDeg: 300 };
+    useEditorStore.getState().setTransientEntities([update]);
+    expect(useEditorStore.getState().undoStack).toHaveLength(0);
+    useEditorStore.getState().replaceEntities([update]);
+    expect(useEditorStore.getState().undoStack).toHaveLength(1);
+    expect(useEditorStore.getState().document.processingOrder).toEqual(original.processingOrder);
+    const saved = serializeProjectDocument(useEditorStore.getState().document);
+    expect(parseProjectDocument(saved).entities[0]).toEqual(update);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().document).toEqual(original);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().document.entities[0]).toEqual(update);
+  });
+
+  it('rejects invalid polygon replacements without adding history', () => {
+    useEditorStore.getState().loadDocument(parseProjectDocument(JSON.stringify(polygonProject)));
+    const original = useEditorStore.getState().document;
+    const entity = original.entities[0] as PolygonEntity;
+    useEditorStore.getState().replaceEntities([{ ...entity, position: { xUm:100_000, yUm:0 } }]);
+    expect(useEditorStore.getState().document).toBe(original);
+    expect(useEditorStore.getState().undoStack).toHaveLength(0);
+    expect(useEditorStore.getState().status).toBe('error.invalidPolygon');
   });
 });
 

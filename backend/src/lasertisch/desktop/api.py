@@ -77,7 +77,7 @@ class DesktopApi(ApplicationApi):
         try:
             with self._dialog_lock:
                 selection = self._require_window().create_file_dialog(
-                    webview.OPEN_DIALOG,
+                    webview.FileDialog.OPEN,
                     allow_multiple=False,
                     file_types=PROJECT_FILE_TYPES,
                 )
@@ -108,7 +108,7 @@ class DesktopApi(ApplicationApi):
         try:
             with self._dialog_lock:
                 selection = self._require_window().create_file_dialog(
-                    webview.SAVE_DIALOG,
+                    webview.FileDialog.SAVE,
                     save_filename=suggested,
                     file_types=PROJECT_FILE_TYPES,
                 )
@@ -144,7 +144,7 @@ class DesktopApi(ApplicationApi):
         try:
             with self._dialog_lock:
                 selection = self._require_window().create_file_dialog(
-                    webview.SAVE_DIALOG,
+                    webview.FileDialog.SAVE,
                     save_filename=suggested,
                     file_types=DEVICE_FILE_TYPES[export_format],
                 )

@@ -12,8 +12,10 @@ from shapely.errors import GEOSException
 from lasertisch.domain.models import (
     Entity,
     LineEntity,
+    PointUm,
     PolygonEntity,
     RectangleEntity,
+    polygon_world_point,
 )
 
 from .errors import GeometryContractError
@@ -48,14 +50,23 @@ def _rectangle_to_polygon(entity: RectangleEntity) -> Polygon:
     return Polygon(coordinates)
 
 
-def _polygon_entity_to_geometry(entity: PolygonEntity) -> ClosedGeometry:
+def _polygon_entity_to_geometry(
+    entity: PolygonEntity, *, local: bool = False
+) -> ClosedGeometry:
+    def coordinates(ring: list[PointUm]) -> list[tuple[float, float]]:
+        points = ring if local else [polygon_world_point(entity, point) for point in ring]
+        if points[0] == points[-1] or any(a == b for a, b in zip(points, points[1:])):
+            raise GeometryContractError(
+                "geometry.invalid",
+                entityId=str(entity.id),
+                reason="duplicate adjacent vertices at micron precision",
+            )
+        return [(um_to_mm(point.x_um), um_to_mm(point.y_um)) for point in points]
+
     polygons = [
         Polygon(
-            [(um_to_mm(point.x_um), um_to_mm(point.y_um)) for point in part.outer_ring],
-            [
-                [(um_to_mm(point.x_um), um_to_mm(point.y_um)) for point in hole]
-                for hole in part.holes
-            ],
+            coordinates(part.outer_ring),
+            [coordinates(hole) for hole in part.holes],
         )
         for part in entity.parts
     ]
@@ -75,6 +86,20 @@ def _validate_closed_geometry(
             entityId=str(entity.id),
             reason=is_valid_reason(geometry),
         )
+    polygons = [geometry] if isinstance(geometry, Polygon) else list(geometry.geoms)
+    for polygon in polygons:
+        rings = [polygon.exterior, *polygon.interiors]
+        if any(not ring.is_simple for ring in rings):
+            raise GeometryContractError(
+                "geometry.invalid", entityId=str(entity.id), reason="self-intersecting ring"
+            )
+        for index, ring in enumerate(rings):
+            if any(ring.intersects(other) for other in rings[index + 1:]):
+                raise GeometryContractError(
+                    "geometry.invalid",
+                    entityId=str(entity.id),
+                    reason="ring boundaries must be disjoint",
+                )
     try:
         snapped = snap_geometry(geometry)
     except GEOSException as exc:
@@ -99,6 +124,8 @@ def _validate_closed_geometry(
 def closed_entity_to_geometry(
     entity: RectangleEntity | PolygonEntity,
 ) -> ClosedGeometry:
+    if isinstance(entity, PolygonEntity):
+        _validate_closed_geometry(_polygon_entity_to_geometry(entity, local=True), entity)
     raw = (
         _rectangle_to_polygon(entity)
         if isinstance(entity, RectangleEntity)

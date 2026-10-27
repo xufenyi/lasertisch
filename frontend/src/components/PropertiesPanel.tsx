@@ -24,7 +24,9 @@ import { formatUmAsMillimetres, parseMillimetresToUm } from '../domain/units';
 import type { EditableEntity, EntityId, WorkAreaSettings } from '../domain/model';
 import { useEditorStore } from '../state/editorStore';
 import { GeometryForm } from './GeometryForm';
+import { PolygonVertexForm } from './PolygonVertexForm';
 import { ProcessForm } from './ProcessForm';
+import { commitInputOnEnter } from './inputCommit';
 
 function ProjectNameField({ name }: { name: string }) {
   const { t } = useTranslation();
@@ -36,6 +38,7 @@ function ProjectNameField({ name }: { name: string }) {
       label={t('project.name')}
       defaultValue={name}
       slotProps={{ htmlInput: { maxLength: 200 } }}
+      onKeyDown={commitInputOnEnter}
       onBlur={(event) => {
         if (!updateProjectName(event.target.value)) event.target.value = name;
       }}
@@ -58,6 +61,7 @@ function WorkAreaFields({ workArea }: { workArea: WorkAreaSettings }) {
       label={`${label} (mm)`}
       defaultValue={formatUmAsMillimetres(valueUm)}
       slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+      onKeyDown={commitInputOnEnter}
       onBlur={(event) => {
         try {
           const value = parseMillimetresToUm(event.target.value);
@@ -108,6 +112,7 @@ function GridSpacingField({ spacingUm }: { spacingUm: number }) {
         setValue(event.target.value);
         if (invalid) setInvalid(false);
       }}
+      onKeyDown={commitInputOnEnter}
       onBlur={() => {
         try {
           const nextSpacingUm = parseMillimetresToUm(value);
@@ -140,6 +145,7 @@ function GlobalSettingsFields() {
         label={`${t('property.travelSpeed')} (${t('unit.millimetresPerSecond')})`}
         defaultValue={formatUmAsMillimetres(settings.travelSpeedUmPerSec)}
         slotProps={{ htmlInput: { inputMode: 'decimal', min: 0.001, step: 'any' } }}
+        onKeyDown={commitInputOnEnter}
         onBlur={(event) => {
           try {
             const travelSpeedUmPerSec = parseMillimetresToUm(event.target.value);
@@ -236,7 +242,7 @@ function ObjectListItem({
             onClick={(event) => event.stopPropagation()}
             onKeyDown={(event) => {
               event.stopPropagation();
-              if (event.key === 'Enter') event.currentTarget.querySelector('input')?.blur();
+              if (event.key === 'Enter') commitInputOnEnter(event);
               if (event.key === 'Escape') {
                 setDraft(entity.name);
                 setEditing(false);
@@ -260,6 +266,7 @@ export function PropertiesPanel() {
   const document = useEditorStore((state) => state.document);
   const transientEntities = useEditorStore((state) => state.transientEntities);
   const selectionIds = useEditorStore((state) => state.selectionIds);
+  const polygonEdit = useEditorStore((state) => state.polygonEdit);
   const setSelection = useEditorStore((state) => state.setSelection);
   const updateGrid = useEditorStore((state) => state.updateGrid);
   const deleteSelected = useEditorStore((state) => state.deleteSelected);
@@ -282,7 +289,8 @@ export function PropertiesPanel() {
       <Box sx={{ mt: 1 }}>
         {selected.length === 1 ? (
           <Stack spacing={1.5}>
-            <GeometryForm entity={selected[0]} />
+            {selected[0].kind === 'polygon' && polygonEdit?.entityId === selected[0].id
+              ? <PolygonVertexForm entity={selected[0]} /> : <GeometryForm entity={selected[0]} />}
             <ProcessForm
               title={t('panel.processing')}
               processes={[selected[0].process]}

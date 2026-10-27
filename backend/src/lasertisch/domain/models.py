@@ -1,4 +1,4 @@
-"""Version 1 canonical project document models.
+"""Version 2 canonical project document models with version 1 migration.
 
 Fabric.js objects and Shapely geometries are projections of these models. They are
 never persisted as the authoritative project representation.
@@ -7,6 +7,7 @@ never persisted as the authoritative project representation.
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 from enum import StrEnum
 from typing import Annotated, Literal
 from uuid import UUID
@@ -61,7 +62,7 @@ class ProcessSpec(ContractModel):
     mode: ProcessMode = ProcessMode.CONTOUR
     mark_speed_um_per_sec: PositiveInt = 900_000
     fill_angle_tenths_deg: AngleTenthsDeg = 0
-    hatch_spacing_um: PositiveInt = 160
+    hatch_spacing_um: PositiveInt = 80
     contour_direction: ContourDirection = ContourDirection.CLOCKWISE
 
     @field_validator("fill_angle_tenths_deg", mode="before")
@@ -128,14 +129,25 @@ class PolygonPart(ContractModel):
                 raise ValueError(
                     "canonical rings omit the duplicated closing vertex"
                 )
+            if any(a == b for a, b in zip(ring, ring[1:])):
+                raise ValueError("polygon rings must not contain consecutive duplicate vertices")
         return self
 
 
 class PolygonEntity(EntityBase):
-    """A baked boolean result with one or more disconnected polygon parts."""
+    """Local straight-edge rings and their rigid placement in world coordinates."""
 
     kind: Literal["polygon"] = "polygon"
+    position: PointUm = Field(default_factory=lambda: PointUm(x_um=0, y_um=0))
+    rotation_tenths_deg: AngleTenthsDeg = 0
     parts: Annotated[list[PolygonPart], Field(min_length=1)]
+
+    @field_validator("rotation_tenths_deg", mode="before")
+    @classmethod
+    def normalize_rotation(cls, value: object) -> object:
+        if isinstance(value, int) and not isinstance(value, bool):
+            return normalize_tenths_degrees(value)
+        return value
 
 
 Entity = Annotated[
@@ -145,7 +157,7 @@ Entity = Annotated[
 
 
 class ProjectDocument(ContractModel):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     document_id: UUID
     project_name: str = Field(min_length=1, max_length=200)
     units: Literal["um"] = "um"
@@ -155,6 +167,40 @@ class ProjectDocument(ContractModel):
     global_settings: GlobalSettings = Field(default_factory=GlobalSettings)
     entities: list[Entity] = Field(default_factory=list)
     processing_order: list[UUID] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_v1(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        version = value.get("schemaVersion", value.get("schema_version", 2))
+        if type(version) is not int:
+            raise ValueError("schema version must be an integer")
+        if version != 1:
+            return value
+        migrated = deepcopy(value)
+        key = "schemaVersion" if "schemaVersion" in migrated else "schema_version"
+        migrated[key] = 2
+        entities = migrated.get("entities", [])
+        if not isinstance(entities, list):
+            return migrated
+        for index, entity in enumerate(entities):
+            if isinstance(entity, dict) and entity.get("kind") == "polygon":
+                if any(key in entity for key in ("position", "rotationTenthsDeg", "rotation_tenths_deg")):
+                    raise ValueError("version 1 polygon vertices must be world coordinates")
+                polygon = PolygonEntity.model_validate(entity)
+                points = [point for part in polygon.parts for point in part.outer_ring]
+                x = math.floor((min(p.x_um for p in points) + max(p.x_um for p in points)) / 2 + 0.5)
+                y = math.floor((min(p.y_um for p in points) + max(p.y_um for p in points)) / 2 + 0.5)
+                polygon = polygon.model_copy(update={
+                    "position": PointUm(x_um=x, y_um=y),
+                    "parts": [PolygonPart(
+                        outer_ring=[PointUm(x_um=p.x_um-x, y_um=p.y_um-y) for p in part.outer_ring],
+                        holes=[[PointUm(x_um=p.x_um-x, y_um=p.y_um-y) for p in ring] for ring in part.holes],
+                    ) for part in polygon.parts],
+                })
+                entities[index] = polygon.model_dump(mode="json", by_alias=True)
+        return migrated
 
     @model_validator(mode="after")
     def require_unique_entities_and_total_processing_order(self) -> "ProjectDocument":
@@ -170,6 +216,11 @@ class ProjectDocument(ContractModel):
                 raise ValueError(
                     f"entity {entity.id} extends outside the configured work area"
                 )
+            if isinstance(entity, PolygonEntity):
+                # Import here to keep the model/conversion module boundary acyclic.
+                from lasertisch.geometry.conversion import closed_entity_to_geometry
+
+                closed_entity_to_geometry(entity)
         return self
 
 
@@ -219,9 +270,19 @@ def _entity_is_inside_work_area(entity: Entity, work_area: WorkArea) -> bool:
             entity.start, work_area
         ) and _point_is_inside_work_area(entity.end, work_area)
     return all(
-        _point_is_inside_work_area(point, work_area)
+        _point_is_inside_work_area(polygon_world_point(entity, point), work_area)
         for part in entity.parts
         for ring in (part.outer_ring, *part.holes)
         for point in ring
+    )
+
+
+def polygon_world_point(entity: PolygonEntity, point: PointUm) -> PointUm:
+    """Round once onto the micron grid; match JavaScript Math.round at ties."""
+    angle = math.radians(-entity.rotation_tenths_deg / 10)
+    cosine, sine = math.cos(angle), math.sin(angle)
+    return PointUm(
+        x_um=entity.position.x_um + math.floor(point.x_um * cosine - point.y_um * sine + 0.5),
+        y_um=entity.position.y_um + math.floor(point.x_um * sine + point.y_um * cosine + 0.5),
     )
 

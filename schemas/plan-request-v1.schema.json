@@ -132,7 +132,7 @@
     },
     "PolygonEntity": {
       "additionalProperties": false,
-      "description": "A baked boolean result with one or more disconnected polygon parts.",
+      "description": "Local straight-edge rings and their rigid placement in world coordinates.",
       "properties": {
         "id": {
           "format": "uuid",
@@ -163,6 +163,16 @@
           "default": "polygon",
           "title": "Kind",
           "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "rotationTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Rotationtenthsdeg",
+          "type": "integer"
         },
         "parts": {
           "items": {
@@ -242,7 +252,7 @@
           "type": "integer"
         },
         "hatchSpacingUm": {
-          "default": 160,
+          "default": 80,
           "exclusiveMinimum": 0,
           "title": "Hatchspacingum",
           "type": "integer"
@@ -259,8 +269,8 @@
       "additionalProperties": false,
       "properties": {
         "schemaVersion": {
-          "const": 1,
-          "default": 1,
+          "const": 2,
+          "default": 2,
           "title": "Schemaversion",
           "type": "integer"
         },

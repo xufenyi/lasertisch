@@ -9,6 +9,7 @@ import {
   parseMillimetresToUm,
 } from '../domain/units';
 import { useEditorStore } from '../state/editorStore';
+import { commitInputOnEnter } from './inputCommit';
 
 interface ProcessFormProps {
   processes: ProcessSpec[];
@@ -60,6 +61,7 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
       defaultValue={value === null ? '' : format(value)}
       placeholder={value === null ? t('common.mixed') : undefined}
       slotProps={{ htmlInput: { inputMode: 'decimal', step: 'any' } }}
+      onKeyDown={commitInputOnEnter}
       onBlur={(event) => {
         if (!event.target.value.trim()) return;
         try {

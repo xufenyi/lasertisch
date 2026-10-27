@@ -1,0 +1,261 @@
+{
+  "schemaVersion": 2,
+  "documentId": "00000000-0000-0000-0000-000000000001",
+  "projectName": "阶段 1：多边形验收",
+  "units": "um",
+  "workArea": {
+    "widthUm": 190000,
+    "heightUm": 190000,
+    "center": {
+      "xUm": 0,
+      "yUm": 0
+    },
+    "origin": "center"
+  },
+  "grid": {
+    "visible": true,
+    "spacingUm": 5000,
+    "snapMove": false,
+    "snapResize": false
+  },
+  "defaultProcess": {
+    "mode": "contour",
+    "markSpeedUmPerSec": 900000,
+    "fillAngleTenthsDeg": 0,
+    "hatchSpacingUm": 80,
+    "contourDirection": "clockwise"
+  },
+  "globalSettings": {
+    "travelSpeedUmPerSec": 10000000,
+    "minimumMarkSegmentUm": 100,
+    "initialJumpToOrigin": true
+  },
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000010",
+      "name": "普通多边形",
+      "kind": "polygon",
+      "visible": true,
+      "locked": false,
+      "position": {
+        "xUm": -45000,
+        "yUm": 40000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -16000,
+              "yUm": -12000
+            },
+            {
+              "xUm": 14000,
+              "yUm": -12000
+            },
+            {
+              "xUm": 20000,
+              "yUm": 4000
+            },
+            {
+              "xUm": 0,
+              "yUm": 18000
+            },
+            {
+              "xUm": -20000,
+              "yUm": 4000
+            }
+          ],
+          "holes": []
+        }
+      ],
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000011",
+      "name": "凹多边形",
+      "kind": "polygon",
+      "visible": true,
+      "locked": false,
+      "position": {
+        "xUm": 35000,
+        "yUm": 40000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -20000,
+              "yUm": -15000
+            },
+            {
+              "xUm": 20000,
+              "yUm": -15000
+            },
+            {
+              "xUm": 20000,
+              "yUm": -5000
+            },
+            {
+              "xUm": -5000,
+              "yUm": -5000
+            },
+            {
+              "xUm": -5000,
+              "yUm": 15000
+            },
+            {
+              "xUm": -20000,
+              "yUm": 15000
+            }
+          ],
+          "holes": []
+        }
+      ],
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000012",
+      "name": "带孔多边形",
+      "kind": "polygon",
+      "visible": true,
+      "locked": false,
+      "position": {
+        "xUm": -45000,
+        "yUm": -35000
+      },
+      "rotationTenthsDeg": 150,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -22000,
+              "yUm": -20000
+            },
+            {
+              "xUm": 22000,
+              "yUm": -20000
+            },
+            {
+              "xUm": 22000,
+              "yUm": 20000
+            },
+            {
+              "xUm": -22000,
+              "yUm": 20000
+            }
+          ],
+          "holes": [
+            [
+              {
+                "xUm": -9000,
+                "yUm": -8000
+              },
+              {
+                "xUm": 9000,
+                "yUm": -8000
+              },
+              {
+                "xUm": 9000,
+                "yUm": 8000
+              },
+              {
+                "xUm": -9000,
+                "yUm": 8000
+              }
+            ]
+          ]
+        }
+      ],
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000013",
+      "name": "两个分离部分",
+      "kind": "polygon",
+      "visible": true,
+      "locked": false,
+      "position": {
+        "xUm": 35000,
+        "yUm": -35000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -25000,
+              "yUm": -15000
+            },
+            {
+              "xUm": -5000,
+              "yUm": -15000
+            },
+            {
+              "xUm": -5000,
+              "yUm": 15000
+            },
+            {
+              "xUm": -25000,
+              "yUm": 15000
+            }
+          ],
+          "holes": []
+        },
+        {
+          "outerRing": [
+            {
+              "xUm": 5000,
+              "yUm": -10000
+            },
+            {
+              "xUm": 25000,
+              "yUm": -10000
+            },
+            {
+              "xUm": 25000,
+              "yUm": 10000
+            },
+            {
+              "xUm": 5000,
+              "yUm": 10000
+            }
+          ],
+          "holes": []
+        }
+      ],
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    }
+  ],
+  "processingOrder": [
+    "00000000-0000-4000-8000-000000000010",
+    "00000000-0000-4000-8000-000000000011",
+    "00000000-0000-4000-8000-000000000012",
+    "00000000-0000-4000-8000-000000000013"
+  ]
+}

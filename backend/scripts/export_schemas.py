@@ -22,12 +22,14 @@ def write_schema(name: str, model: type[ContractModel]) -> None:
     target.write_text(
         json.dumps(schema, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
 
 
 def main() -> None:
     SCHEMA_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    write_schema("project-v1.schema.json", ProjectDocument)
+    # Keep the archived v1 schema unchanged; the live model serializes v2.
+    write_schema("project-v2.schema.json", ProjectDocument)
     write_schema("plan-request-v1.schema.json", PlanRequest)
     write_schema("plan-response-v1.schema.json", PlanResponse)
     write_schema("export-request-v1.schema.json", ExportRequest)

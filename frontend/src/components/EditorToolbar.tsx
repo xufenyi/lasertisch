@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import CropSquareRoundedIcon from '@mui/icons-material/CropSquareRounded';
+import PolylineRoundedIcon from '@mui/icons-material/PolylineRounded';
 import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
 import HorizontalRuleRoundedIcon from '@mui/icons-material/HorizontalRuleRounded';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
@@ -105,6 +106,12 @@ export function EditorToolbar({ onFit }: { onFit: () => void }) {
             sx={toolButtonSx}
           >
             <CropSquareRoundedIcon />
+          </ToggleButton>
+        </Tooltip>
+        <Tooltip title={`${t('tool.polygon')} (${TOOL_SHORTCUT_KEY.polygon})`}>
+          <ToggleButton value="polygon" aria-label={t('tool.polygon')}
+            aria-keyshortcuts={TOOL_SHORTCUT_KEY.polygon} onClick={() => setTool('polygon')} sx={toolButtonSx}>
+            <PolylineRoundedIcon />
           </ToggleButton>
         </Tooltip>
       </ToggleButtonGroup>

@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 @pytest.mark.parametrize(
     ("filename", "model"),
     [
-        ("project-v1.schema.json", ProjectDocument),
+        ("project-v2.schema.json", ProjectDocument),
         ("plan-request-v1.schema.json", PlanRequest),
         ("plan-response-v1.schema.json", PlanResponse),
         ("export-request-v1.schema.json", ExportRequest),

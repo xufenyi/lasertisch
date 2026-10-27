@@ -12,6 +12,7 @@ import {
   WORK_AREA_SIZE_UM,
 } from './model';
 import { normalizeTenthsDegrees } from './units';
+import { isValidPolygon, polygonBounds } from './polygonGeometry';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PROCESS_MODES = new Set<ProcessMode>([
@@ -132,7 +133,7 @@ function globalSettings(value: unknown): GlobalSettings {
   };
 }
 
-function entity(value: unknown, index: number): EditableEntity {
+function entity(value: unknown, index: number, version: number): EditableEntity {
   const source = record(value, `entities[${index}]`);
   const base = {
     id: uuid(source.id, `entities[${index}].id`),
@@ -165,6 +166,36 @@ function entity(value: unknown, index: number): EditableEntity {
     }
     return { ...base, kind: 'line', start, end };
   }
+  if (source.kind === 'polygon') {
+    if (!Array.isArray(source.parts) || !source.parts.length) throw new Error('polygon parts are required');
+    const ring = (value: unknown): PointUm[] => {
+      if (!Array.isArray(value) || value.length < 3) throw new Error('polygon ring is invalid');
+      return value.map((p) => point(p, 'polygon vertex'));
+    };
+    if (version === 1 && ('position' in source || 'rotationTenthsDeg' in source)) {
+      throw new Error('version 1 polygon vertices must be world coordinates');
+    }
+    const polygon: EditableEntity = {
+      ...base, kind: 'polygon',
+      position: version === 1 ? { xUm: 0, yUm: 0 } : point(source.position ?? { xUm: 0, yUm: 0 }, 'polygon.position'),
+      rotationTenthsDeg: version === 1 ? 0 : normalizeTenthsDegrees(integer(source.rotationTenthsDeg ?? 0, 'polygon.rotationTenthsDeg')),
+      parts: source.parts.map((rawPart) => {
+        const part = record(rawPart, 'polygon part');
+        const holes = part.holes ?? [];
+        if (!Array.isArray(holes)) throw new Error('polygon holes must be an array');
+        return { outerRing: ring(part.outerRing), holes: holes.map(ring) };
+      }),
+    };
+    if (version === 1) {
+      const bounds = polygonBounds(polygon);
+      const x = Math.round((bounds.minX + bounds.maxX) / 2), y = Math.round((bounds.minY + bounds.maxY) / 2);
+      const translate = (p: PointUm): PointUm => ({ xUm: p.xUm - x, yUm: p.yUm - y });
+      polygon.position = { xUm: x, yUm: y };
+      polygon.parts = polygon.parts.map((part) => ({ outerRing: part.outerRing.map(translate), holes: part.holes.map((ring) => ring.map(translate)) }));
+    }
+    if (!isValidPolygon(polygon)) throw new Error('polygon topology is invalid');
+    return polygon;
+  }
   throw new Error(`entities[${index}].kind is unsupported`);
 }
 
@@ -176,14 +207,14 @@ export function parseProjectDocument(sourceText: string): EditorDocument {
     throw new Error('project is not valid JSON');
   }
   const source = record(raw, 'project');
-  if (source.schemaVersion !== 1 || source.units !== 'um') {
+  if ((source.schemaVersion !== 1 && source.schemaVersion !== 2) || source.units !== 'um') {
     throw new Error('unsupported project schema');
   }
   if (!Array.isArray(source.entities) || !Array.isArray(source.processingOrder)) {
     throw new Error('entities and processingOrder must be arrays');
   }
   const parsedWorkArea = workArea(source.workArea);
-  const entities = source.entities.map(entity);
+  const entities = source.entities.map((item, index) => entity(item, index, source.schemaVersion as number));
   const entityIds = entities.map((item) => item.id);
   if (new Set(entityIds).size !== entityIds.length) throw new Error('entity ids must be unique');
   const processingOrder = source.processingOrder.map((id, index) => uuid(id, `processingOrder[${index}]`));
@@ -198,7 +229,7 @@ export function parseProjectDocument(sourceText: string): EditorDocument {
     throw new Error('geometry lies outside the work area');
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     documentId: uuid(source.documentId, 'documentId'),
     projectName: text(source.projectName, 'projectName'),
     units: 'um',

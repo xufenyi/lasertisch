@@ -12,6 +12,8 @@ import {
   parseMillimetresToUm,
 } from '../domain/units';
 import { useEditorStore } from '../state/editorStore';
+import { PolygonGeometryForm } from './PolygonGeometryForm';
+import { commitInputOnEnter } from './inputCommit';
 
 interface GeometryValues {
   x: string;
@@ -23,7 +25,7 @@ interface GeometryValues {
   y2: string;
 }
 
-function valuesFor(entity: EditableEntity): GeometryValues {
+function valuesFor(entity: RectangleEntity | LineEntity): GeometryValues {
   if (entity.kind === 'rectangle') {
     return {
       x: formatUmAsMillimetres(entity.center.xUm),
@@ -47,6 +49,12 @@ function valuesFor(entity: EditableEntity): GeometryValues {
 }
 
 export function GeometryForm({ entity }: { entity: EditableEntity }) {
+  return entity.kind === 'polygon'
+    ? <PolygonGeometryForm entity={entity} />
+    : <PrimitiveGeometryForm entity={entity} />;
+}
+
+function PrimitiveGeometryForm({ entity }: { entity: RectangleEntity | LineEntity }) {
   const { t } = useTranslation();
   const replaceEntities = useEditorStore((state) => state.replaceEntities);
   const setStatus = useEditorStore((state) => state.setStatus);
@@ -122,6 +130,7 @@ export function GeometryForm({ entity }: { entity: EditableEntity }) {
       error={Boolean(errors[name])}
       helperText={errors[name]?.message}
       slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+      onKeyDown={commitInputOnEnter}
       fullWidth
     />
   );

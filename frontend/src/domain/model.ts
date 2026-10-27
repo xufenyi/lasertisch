@@ -2,7 +2,7 @@ export const WORK_AREA_SIZE_UM = 190_000;
 export const BASE_PIXELS_PER_MM = 4;
 
 export type EntityId = string;
-export type Tool = 'select' | 'rectangle' | 'line' | 'pan';
+export type Tool = 'select' | 'rectangle' | 'line' | 'polygon' | 'pan';
 export type ProcessMode =
   | 'none'
   | 'contour'
@@ -46,7 +46,20 @@ export interface LineEntity extends EntityBase {
   end: PointUm;
 }
 
-export type EditableEntity = RectangleEntity | LineEntity;
+export interface PolygonPart {
+  outerRing: PointUm[];
+  holes: PointUm[][];
+}
+
+export interface PolygonEntity extends EntityBase {
+  kind: 'polygon';
+  /** World position of the local origin; vertices remain in local coordinates. */
+  position: PointUm;
+  rotationTenthsDeg: number;
+  parts: PolygonPart[];
+}
+
+export type EditableEntity = RectangleEntity | LineEntity | PolygonEntity;
 
 export interface GridSettings {
   visible: boolean;
@@ -69,7 +82,7 @@ export interface GlobalSettings {
 }
 
 export interface EditorDocument {
-  schemaVersion: 1;
+  schemaVersion: 2;
   documentId: string;
   projectName: string;
   units: 'um';
@@ -85,13 +98,13 @@ export const DEFAULT_PROCESS: ProcessSpec = {
   mode: 'contour',
   markSpeedUmPerSec: 900_000,
   fillAngleTenthsDeg: 0,
-  hatchSpacingUm: 160,
+  hatchSpacingUm: 80,
   contourDirection: 'clockwise',
 };
 
 export function createEmptyDocument(projectName = 'Untitled project'): EditorDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     documentId: createEntityId(),
     projectName,
     units: 'um',

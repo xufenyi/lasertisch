@@ -7,12 +7,17 @@ import {
   useState,
 } from 'react';
 import { ActiveSelection, Canvas, FabricObject, Line, Point, Rect } from 'fabric';
+import { useTranslation } from 'react-i18next';
+import i18n from '../i18n';
+import { movePolygonVertex, polygonWorldToLocal, type PolygonVertexAddress } from '../domain/polygonEditing';
+import { isValidPolygon } from '../domain/polygonGeometry';
 
 import {
   clampPoint,
   constrainDrawingEnd,
   isPointInWorkArea,
   isRectangleInWorkArea,
+  isEntityInWorkArea,
   sceneToWorld,
   snapPoint,
   workAreaSceneSize,
@@ -24,6 +29,7 @@ import {
   type EditableEntity,
   type EntityId,
   type PointUm,
+  type PolygonEntity,
   type ProcessSpec,
   type Tool,
   type WorkAreaSettings,
@@ -42,6 +48,7 @@ import {
   updateScreenStrokeWidths,
 } from './fabricAdapter';
 import { drawToolpathPreview } from './toolpathRenderer';
+import { drawPolygonOverlay, findPolygonEdge, findPolygonVertex, isNearPolygonStart } from './polygonInteraction';
 
 export interface CanvasSurfaceHandle {
   fitWorkArea: () => void;
@@ -54,6 +61,15 @@ interface DrawSession {
 }
 
 interface PanSession { x: number; y: number }
+interface VertexDragSession {
+  entity: PolygonEntity;
+  vertex: PolygonVertexAddress;
+  start: Point;
+  revision: number;
+  moved: boolean;
+  candidate: PolygonEntity | null;
+  invalidPoint: PointUm | null;
+}
 
 function selectedIds(target: FabricObject | undefined): EntityId[] {
   if (!target) return [];
@@ -104,8 +120,9 @@ function configureGeometryInteraction(
   registry: Map<EntityId, FabricObject>,
   entities: EditableEntity[],
   tool: Tool,
+  editing = false,
 ): void {
-  const selecting = tool === 'select';
+  const selecting = tool === 'select' && !editing;
   const lockedById = new Map(entities.map((entity) => [entity.id, entity.locked]));
   for (const [id, object] of registry) {
     const interactive = selecting && !lockedById.get(id);
@@ -123,7 +140,7 @@ function rebuildCanvas(
   registry: Map<EntityId, FabricObject>,
   suppressSelection: React.MutableRefObject<boolean>,
 ): void {
-  const { document, selectionIds, tool } = useEditorStore.getState();
+  const { document, selectionIds, tool, polygonEdit, transientEntities } = useEditorStore.getState();
   const viewport = [...canvas.viewportTransform] as [number, number, number, number, number, number];
   suppressSelection.current = true;
   canvas.clear();
@@ -133,13 +150,14 @@ function rebuildCanvas(
   const zoom = canvas.getZoom();
   canvas.add(...createReferenceObjects(document.grid, document.workArea, zoom));
   for (const entity of document.entities) {
-    const object = entityToFabricObject(entity, document.workArea, zoom);
+    const displayed = polygonEdit ? transientEntities[entity.id] ?? entity : entity;
+    const object = entityToFabricObject(displayed, document.workArea, zoom);
     registry.set(entity.id, object);
     canvas.add(object);
   }
-  configureGeometryInteraction(registry, document.entities, tool);
-  canvas.selection = tool === 'select';
-  if (tool === 'select') applySelection(canvas, registry, selectionIds);
+  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit));
+  canvas.selection = tool === 'select' && !polygonEdit;
+  if (canvas.selection) applySelection(canvas, registry, selectionIds);
   else canvas.discardActiveObject();
   suppressSelection.current = false;
 }
@@ -304,11 +322,15 @@ function drawRulers(
 }
 
 export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurface(_, ref) {
+  const { t } = useTranslation();
   const elementRef = useRef<HTMLCanvasElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const topRulerRef = useRef<HTMLCanvasElement>(null);
   const leftRulerRef = useRef<HTMLCanvasElement>(null);
   const toolpathOverlayRef = useRef<HTMLCanvasElement>(null);
+  const polygonOverlayRef = useRef<HTMLCanvasElement>(null);
+  const polygonCursorRef = useRef<PointUm | null>(null);
+  const vertexDragRef = useRef<VertexDragSession | null>(null);
   const registryRef = useRef(new Map<EntityId, FabricObject>());
   const suppressSelectionRef = useRef(false);
   const drawSessionRef = useRef<DrawSession | null>(null);
@@ -319,6 +341,8 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const workArea = useEditorStore((state) => state.document.workArea);
   const selectionIds = useEditorStore((state) => state.selectionIds);
   const tool = useEditorStore((state) => state.tool);
+  const polygonDraft = useEditorStore((state) => state.polygonDraft);
+  const polygonEdit = useEditorStore((state) => state.polygonEdit);
   const documentRevision = useEditorStore((state) => state.documentRevision);
   const toolpathPlan = usePlanningStore((state) => state.plan);
   const planRevision = usePlanningStore((state) => state.planRevision);
@@ -359,6 +383,11 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         editorState.document.workArea,
         planningState.previewVisible,
       );
+      const edit = editorState.polygonEdit;
+      const entity = edit ? editorState.transientEntities[edit.entityId] ?? editorState.document.entities.find((item) => item.id === edit.entityId) : null;
+      drawPolygonOverlay(instance, polygonOverlayRef.current, editorState.document.workArea,
+        editorState.polygonDraft, polygonCursorRef.current, entity?.kind === 'polygon' ? entity : null,
+        edit?.vertex ?? null, vertexDragRef.current?.invalidPoint ?? null);
     };
     const synchronizeScreenStrokes = () => {
       updateScreenStrokeWidths(
@@ -382,6 +411,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     resize();
 
     const syncSelection = (target: FabricObject | undefined) => {
+      if (useEditorStore.getState().polygonEdit) return;
       if (!suppressSelectionRef.current) useEditorStore.getState().setSelection(selectedIds(target));
     };
     instance.on('selection:created', () => syncSelection(instance.getActiveObject()));
@@ -478,13 +508,64 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       }
     });
 
+    const editedEntity = (): PolygonEntity | null => {
+      const state = useEditorStore.getState();
+      const entity = state.document.entities.find((item) => item.id === state.polygonEdit?.entityId);
+      return entity?.kind === 'polygon' ? entity : null;
+    };
+    const updateVertexDrag = (point: Point) => {
+      const drag = vertexDragRef.current;
+      if (!drag) return;
+      const state = useEditorStore.getState();
+      if (state.documentRevision !== drag.revision || state.polygonEdit?.entityId !== drag.entity.id) {
+        vertexDragRef.current = null; state.clearTransientEntities(); refresh(instance); return;
+      }
+      if (!drag.moved && Math.hypot(point.x - drag.start.x, point.y - drag.start.y) * instance.getZoom() < 2) return;
+      drag.moved = true;
+      const raw = sceneToWorld(point, state.document.workArea);
+      const world = state.document.grid.snapMove && isPointInWorkArea(raw, state.document.workArea)
+        ? snapPoint(raw, state.document.grid.spacingUm, state.document.workArea) : raw;
+      const candidate = movePolygonVertex(drag.entity, drag.vertex, polygonWorldToLocal(drag.entity, world));
+      const valid = candidate && isValidPolygon(candidate) && isEntityInWorkArea(candidate, state.document.workArea);
+      drag.candidate = valid ? candidate : null;
+      drag.invalidPoint = valid ? null : world;
+      state.setTransientEntities(valid ? [candidate] : []);
+      instance.defaultCursor = valid ? 'move' : 'not-allowed';
+      refresh(instance);
+    };
+
     instance.on('mouse:down', (event) => {
       const mouse = event.e as MouseEvent;
       const state = useEditorStore.getState();
       if (mouse.button === 1 || state.tool === 'pan') {
+        if (vertexDragRef.current) {
+          vertexDragRef.current = null; state.clearTransientEntities(); refresh(instance);
+        }
         panSessionRef.current = { x: mouse.clientX, y: mouse.clientY };
         instance.defaultCursor = 'grabbing';
         return;
+      }
+      if (mouse.button !== 0) return;
+      if (state.tool === 'polygon') {
+        if (isNearPolygonStart(state.polygonDraft, event.scenePoint, instance.getZoom(), state.document.workArea)) {
+          state.finishPolygon(i18n.t('tool.polygon'));
+        } else {
+          const raw = sceneToWorld(event.scenePoint, state.document.workArea);
+          const point = state.document.grid.snapMove && isPointInWorkArea(raw, state.document.workArea)
+            ? snapPoint(raw, state.document.grid.spacingUm, state.document.workArea) : raw;
+          state.appendPolygonPoint(point);
+        }
+        instance.requestRenderAll(); return;
+      }
+      const polygon = editedEntity();
+      if (polygon) {
+        const vertex = findPolygonVertex(polygon, event.scenePoint, instance.getZoom(), state.document.workArea);
+        if (vertex) {
+          state.selectPolygonVertex(vertex);
+          vertexDragRef.current = { entity: polygon, vertex, start: event.scenePoint,
+            revision: state.documentRevision, moved: false, candidate: null, invalidPoint: null };
+        }
+        instance.requestRenderAll(); return;
       }
       if (mouse.button !== 0 || (state.tool !== 'rectangle' && state.tool !== 'line')) return;
       const start = pointerWorld(event.scenePoint, state.document.grid.snapMove);
@@ -510,6 +591,19 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         instance.requestRenderAll();
         return;
       }
+      if (vertexDragRef.current) { updateVertexDrag(event.scenePoint); return; }
+      const currentState = useEditorStore.getState();
+      if (currentState.tool === 'polygon') {
+        polygonCursorRef.current = pointerWorld(event.scenePoint, currentState.document.grid.snapMove);
+        instance.defaultCursor = isNearPolygonStart(currentState.polygonDraft, event.scenePoint, instance.getZoom(), currentState.document.workArea) ? 'pointer' : 'crosshair';
+        instance.requestRenderAll(); return;
+      }
+      const polygon = editedEntity();
+      if (polygon) {
+        instance.setCursor(findPolygonVertex(polygon, event.scenePoint, instance.getZoom(), currentState.document.workArea) ? 'move'
+          : findPolygonEdge(polygon, event.scenePoint, instance.getZoom(), currentState.document.workArea) ? 'copy' : 'default');
+        return;
+      }
       const session = drawSessionRef.current;
       if (!session) return;
       const state = useEditorStore.getState();
@@ -523,6 +617,17 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       if (panSessionRef.current) {
         panSessionRef.current = null;
         instance.defaultCursor = useEditorStore.getState().tool === 'pan' ? 'grab' : 'default';
+        return;
+      }
+      const drag = vertexDragRef.current;
+      if (drag) {
+        if (drag.moved) updateVertexDrag(event.scenePoint);
+        const active = vertexDragRef.current;
+        vertexDragRef.current = null;
+        const state = useEditorStore.getState();
+        if (active?.moved && active.candidate) state.replaceEntities([active.candidate]);
+        else if (active?.moved) state.setStatus('error.invalidPolygon');
+        state.clearTransientEntities(); instance.defaultCursor = 'default'; refresh(instance); return;
       }
       const session = drawSessionRef.current;
       if (!session) return;
@@ -554,6 +659,14 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       } else state.setStatus('error.geometryOutOfBounds');
     });
 
+    instance.on('mouse:dblclick', (event) => {
+      if ((event.e as MouseEvent).button !== 0) return;
+      const state = useEditorStore.getState(), polygon = editedEntity();
+      if (!polygon || findPolygonVertex(polygon, event.scenePoint, instance.getZoom(), state.document.workArea)) return;
+      const edge = findPolygonEdge(polygon, event.scenePoint, instance.getZoom(), state.document.workArea);
+      if (edge) { state.selectPolygonVertex(edge.address); useEditorStore.getState().insertSelectedVertex(edge.localPoint); }
+    });
+
     instance.on('mouse:wheel', (event) => {
       const wheel = event.e as WheelEvent;
       const nextZoom = Math.max(0.1, Math.min(20, instance.getZoom() * 0.999 ** wheel.deltaY));
@@ -579,7 +692,8 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   }, [canvas, workArea, refresh]);
 
   useEffect(() => {
-    if (!canvas) return;
+    const state = useEditorStore.getState();
+    if (!canvas || state.polygonEdit || state.tool !== 'select') return;
     // Fabric selects on pointer-down and starts its transform immediately. Reapplying
     // the same selection here would replace that active object and cancel the drag.
     if (sameSelection(selectedIds(canvas.getActiveObject()), selectionIds)) return;
@@ -591,24 +705,39 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   useEffect(() => {
     if (!canvas) return;
     const state = useEditorStore.getState();
-    const selecting = tool === 'select';
+    vertexDragRef.current = null;
+    polygonCursorRef.current = null;
+    if (drawSessionRef.current && drawSessionRef.current.tool !== tool) {
+      canvas.remove(drawSessionRef.current.preview); drawSessionRef.current = null;
+    }
+    refresh(canvas);
+    const selecting = tool === 'select' && !state.polygonEdit;
     canvas.selection = selecting;
-    configureGeometryInteraction(registryRef.current, state.document.entities, tool);
+    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit));
     canvas.defaultCursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
     if (selecting) {
       applySelection(canvas, registryRef.current, state.selectionIds);
-    } else {
+    } else if (!state.polygonEdit) {
       suppressSelectionRef.current = true;
       canvas.discardActiveObject();
       suppressSelectionRef.current = false;
       state.setSelection([]);
     }
     canvas.requestRenderAll();
-  }, [canvas, tool]);
+  }, [canvas, tool, polygonEdit?.entityId, refresh]);
 
   useEffect(() => {
     if (canvas) canvas.requestRenderAll();
-  }, [canvas, documentRevision, planRevision, previewVisible, toolpathPlan]);
+    if (vertexDragRef.current && vertexDragRef.current.revision !== documentRevision) {
+      vertexDragRef.current = null; useEditorStore.getState().clearTransientEntities();
+      if (canvas) refresh(canvas);
+    }
+  }, [canvas, documentRevision, planRevision, previewVisible, toolpathPlan, refresh]);
+
+  useEffect(() => {
+    if (!polygonDraft.length) polygonCursorRef.current = null;
+    canvas?.requestRenderAll();
+  }, [canvas, polygonDraft, polygonEdit]);
 
   return (
     <div className="canvas-surface">
@@ -618,6 +747,10 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       <div className="fabric-host" ref={hostRef}>
         <canvas ref={elementRef} />
         <canvas className="toolpath-overlay" ref={toolpathOverlayRef} />
+        <canvas className="polygon-overlay" ref={polygonOverlayRef} />
+        {(tool === 'polygon' || polygonEdit) && <div className="polygon-hint">
+          {tool === 'polygon' ? t('polygon.drawHint', { count: polygonDraft.length }) : t('polygon.editHint')}
+        </div>}
       </div>
     </div>
   );

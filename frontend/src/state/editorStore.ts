@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 
 import { isEntityInWorkArea } from '../domain/geometry';
+import { isValidPolygon } from '../domain/polygonGeometry';
+import {
+  deletePolygonVertex, insertPolygonVertex, movePolygonVertex, polygonFromPoints, polygonRing,
+  reconcilePolygonEdit, type PolygonEditState, type PolygonVertexAddress,
+} from '../domain/polygonEditing';
 import {
   createEmptyDocument,
   type EditableEntity,
@@ -9,6 +14,8 @@ import {
   type GridSettings,
   type GlobalSettings,
   type ProcessSpec,
+  type PointUm,
+  type PolygonEntity,
   type Tool,
   type WorkAreaSettings,
   WORK_AREA_SIZE_UM,
@@ -21,6 +28,8 @@ interface EditorState {
   documentRevision: number;
   selectionIds: EntityId[];
   transientEntities: Record<EntityId, EditableEntity>;
+  polygonDraft: PointUm[];
+  polygonEdit: PolygonEditState | null;
   tool: Tool;
   status: string | null;
   undoStack: EditorDocument[];
@@ -35,6 +44,15 @@ interface EditorState {
   deleteSelected: () => void;
   setSelection: (ids: EntityId[]) => void;
   setTool: (tool: Tool) => void;
+  appendPolygonPoint: (point: PointUm) => boolean;
+  undoPolygonPoint: () => void;
+  finishPolygon: (name?: string) => boolean;
+  startPolygonEdit: (id: EntityId) => void;
+  finishPolygonEdit: () => void;
+  selectPolygonVertex: (vertex: PolygonVertexAddress) => void;
+  moveSelectedVertex: (point: PointUm) => boolean;
+  insertSelectedVertex: (point?: PointUm) => boolean;
+  deleteSelectedVertex: () => boolean;
   updateGrid: (patch: Partial<GridSettings>) => void;
   updateWorkArea: (workArea: WorkAreaSettings) => boolean;
   updateProjectName: (name: string) => boolean;
@@ -66,8 +84,24 @@ function committedDocument(state: EditorState, document: EditorDocument) {
     undoStack: [...state.undoStack, state.document].slice(-HISTORY_LIMIT),
     redoStack: [],
     transientEntities: {},
+    polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
     isDirty: fingerprint(document) !== state.savedFingerprint,
     status: null,
+  };
+}
+
+function editedPolygon(state: EditorState): PolygonEntity | null {
+  const entity = state.document.entities.find((item) => item.id === state.polygonEdit?.entityId);
+  return entity?.kind === 'polygon' && !entity.locked && entity.visible ? entity : null;
+}
+
+function commitPolygonEdit(state: EditorState, entity: PolygonEntity | null, vertex?: PolygonVertexAddress) {
+  if (!entity || !state.polygonEdit || !isValidPolygon(entity) || !isEntityInWorkArea(entity, state.document.workArea)) {
+    return { status: 'error.invalidPolygon' };
+  }
+  return {
+    ...committedDocument(state, { ...state.document, entities: state.document.entities.map((item) => item.id === entity.id ? entity : item) }),
+    polygonEdit: { entityId: entity.id, vertex: vertex ?? state.polygonEdit.vertex },
   };
 }
 
@@ -89,6 +123,8 @@ export const useEditorStore = create<EditorState>((set) => {
     documentRevision: 0,
     selectionIds: [],
     transientEntities: {},
+    polygonDraft: [],
+    polygonEdit: null,
     tool: 'select',
     status: null,
     undoStack: [],
@@ -96,7 +132,9 @@ export const useEditorStore = create<EditorState>((set) => {
     savedFingerprint: fingerprint(initialDocument),
     isDirty: false,
 
-    addEntity: (entity) => set((state) => ({
+    addEntity: (entity) => set((state) => entity.kind === 'polygon' &&
+      (!isValidPolygon(entity) || !isEntityInWorkArea(entity, state.document.workArea))
+      ? { status: 'error.invalidPolygon' } : ({
       ...committedDocument(state, {
         ...state.document,
         entities: [...state.document.entities, entity],
@@ -107,10 +145,16 @@ export const useEditorStore = create<EditorState>((set) => {
 
     replaceEntities: (entities) => {
       const replacements = new Map(entities.map((entity) => [entity.id, entity]));
-      set((state) => committedDocument(state, {
-        ...state.document,
-        entities: state.document.entities.map((entity) => replacements.get(entity.id) ?? entity),
-      }));
+      set((state) => {
+        if (entities.some((entity) => entity.kind === 'polygon' &&
+          (!isValidPolygon(entity) || !isEntityInWorkArea(entity, state.document.workArea)))) {
+          return { status: 'error.invalidPolygon', transientEntities: {} };
+        }
+        return committedDocument(state, {
+          ...state.document,
+          entities: state.document.entities.map((entity) => replacements.get(entity.id) ?? entity),
+        });
+      });
     },
 
     renameEntity: (id, rawName) => {
@@ -132,6 +176,7 @@ export const useEditorStore = create<EditorState>((set) => {
     clearTransientEntities: () => set({ transientEntities: {} }),
 
     deleteSelected: () => set((state) => {
+      if (state.polygonEdit || state.tool === 'polygon') return {};
       if (!state.selectionIds.length) return {};
       const deleted = new Set(state.selectionIds);
       return {
@@ -146,8 +191,85 @@ export const useEditorStore = create<EditorState>((set) => {
 
     setSelection: (ids) => set((state) => sameIds(state.selectionIds, ids)
       ? state
-      : { selectionIds: ids, transientEntities: {} }),
-    setTool: (tool) => set({ tool, status: null }),
+      : { selectionIds: ids, transientEntities: {}, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
+    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, transientEntities: {} }),
+
+    appendPolygonPoint: (point) => {
+      let accepted = false;
+      set((state) => {
+        if (state.tool !== 'polygon') return {};
+        const previous = state.polygonDraft.at(-1);
+        if (!Number.isSafeInteger(point.xUm) || !Number.isSafeInteger(point.yUm) ||
+          (previous?.xUm === point.xUm && previous?.yUm === point.yUm)) return { status: 'polygon.duplicateVertex' };
+        const area = state.document.workArea;
+        if (Math.abs(point.xUm - area.center.xUm) > area.widthUm / 2 || Math.abs(point.yUm - area.center.yUm) > area.heightUm / 2) return { status: 'error.geometryOutOfBounds' };
+        accepted = true;
+        return { polygonDraft: [...state.polygonDraft, point], status: null };
+      });
+      return accepted;
+    },
+    undoPolygonPoint: () => set((state) => ({ polygonDraft: state.polygonDraft.slice(0, -1), status: null })),
+    finishPolygon: (name = 'Polygon') => {
+      let accepted = false;
+      set((state) => {
+        if (state.tool !== 'polygon') return {};
+        if (state.polygonDraft.length < 3) return { status: 'polygon.needThreeVertices' };
+        const entity = polygonFromPoints(state.polygonDraft, state.document.defaultProcess,
+          `${name} ${state.document.entities.length + 1}`, state.document.workArea);
+        if (!entity) return { status: 'error.invalidPolygon' };
+        accepted = true;
+        return { ...committedDocument(state, { ...state.document, entities: [...state.document.entities, entity], processingOrder: [...state.document.processingOrder, entity.id] }),
+          selectionIds: [entity.id], tool: 'select' as const, polygonDraft: [], polygonEdit: null };
+      });
+      return accepted;
+    },
+    startPolygonEdit: (id) => set((state) => {
+      const entity = state.document.entities.find((item) => item.id === id);
+      if (entity?.kind !== 'polygon' || entity.locked || !entity.visible) return {};
+      return { tool: 'select', selectionIds: [id], polygonDraft: [], transientEntities: {}, status: null,
+        polygonEdit: { entityId: id, vertex: { partIndex: 0, ringIndex: 0, vertexIndex: 0 } } };
+    }),
+    finishPolygonEdit: () => set({ polygonEdit: null, transientEntities: {}, status: null }),
+    selectPolygonVertex: (vertex) => set((state) => {
+      const entity = editedPolygon(state);
+      return entity && polygonRing(entity, vertex) ? { polygonEdit: { entityId: entity.id, vertex }, status: null } : {};
+    }),
+    moveSelectedVertex: (point) => {
+      let accepted = false;
+      set((state) => {
+        const entity = editedPolygon(state);
+        if (!entity || !state.polygonEdit) return {};
+        const result = commitPolygonEdit(state, movePolygonVertex(entity, state.polygonEdit.vertex, point));
+        accepted = result.status !== 'error.invalidPolygon';
+        return result;
+      });
+      return accepted;
+    },
+    insertSelectedVertex: (point) => {
+      let accepted = false;
+      set((state) => {
+        const entity = editedPolygon(state);
+        if (!entity || !state.polygonEdit) return {};
+        const address = state.polygonEdit.vertex;
+        const result = commitPolygonEdit(state, insertPolygonVertex(entity, address, point), { ...address, vertexIndex: address.vertexIndex + 1 });
+        accepted = result.status !== 'error.invalidPolygon';
+        return result;
+      });
+      return accepted;
+    },
+    deleteSelectedVertex: () => {
+      let accepted = false;
+      set((state) => {
+        const entity = editedPolygon(state);
+        if (!entity || !state.polygonEdit) return {};
+        const address = state.polygonEdit.vertex, ring = polygonRing(entity, address);
+        if (!ring || ring.length <= 3) return { status: 'polygon.minimumVertices' };
+        const result = commitPolygonEdit(state, deletePolygonVertex(entity, address), { ...address, vertexIndex: Math.min(address.vertexIndex, ring.length - 2) });
+        accepted = result.status !== 'error.invalidPolygon';
+        return result;
+      });
+      return accepted;
+    },
 
     updateGrid: (patch) => set((state) => committedDocument(state, {
       ...state.document,
@@ -243,6 +365,7 @@ export const useEditorStore = create<EditorState>((set) => {
     }),
 
     undo: () => set((state) => {
+      if (state.tool === 'polygon') return { polygonDraft: state.polygonDraft.slice(0, -1), status: null };
       const document = state.undoStack.at(-1);
       if (!document) return {};
       return {
@@ -252,12 +375,14 @@ export const useEditorStore = create<EditorState>((set) => {
         redoStack: [state.document, ...state.redoStack].slice(0, HISTORY_LIMIT),
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
+        polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
     }),
 
     redo: () => set((state) => {
+      if (state.tool === 'polygon') return {};
       const [document, ...rest] = state.redoStack;
       if (!document) return {};
       return {
@@ -267,6 +392,7 @@ export const useEditorStore = create<EditorState>((set) => {
         redoStack: rest,
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
+        polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -279,6 +405,7 @@ export const useEditorStore = create<EditorState>((set) => {
         documentRevision: state.documentRevision + 1,
         selectionIds: [],
         transientEntities: {},
+        polygonDraft: [], polygonEdit: null,
         tool: 'select',
         undoStack: [],
         redoStack: [],
@@ -293,6 +420,7 @@ export const useEditorStore = create<EditorState>((set) => {
       documentRevision: state.documentRevision + 1,
       selectionIds: [],
       transientEntities: {},
+      polygonDraft: [], polygonEdit: null,
       tool: 'select',
       undoStack: [],
       redoStack: [],
