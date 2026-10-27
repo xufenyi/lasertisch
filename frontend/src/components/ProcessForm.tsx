@@ -76,11 +76,14 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
       <Divider />
       <Typography variant="subtitle2">{title}</Typography>
       <FormControl size="small" fullWidth>
-        <InputLabel>{t('property.processMode')}</InputLabel>
+        <InputLabel shrink>{t('property.processMode')}</InputLabel>
         <Select
           value={mode ?? ''}
           label={t('property.processMode')}
           displayEmpty={mode === null}
+          renderValue={(selected) => String(selected) === ''
+            ? t('common.mixed')
+            : t(modeTranslationKey(selected as ProcessMode))}
           onChange={(event) => onPatch({ mode: event.target.value as ProcessMode })}
         >
           {mode === null && <MenuItem value="" disabled>{t('common.mixed')}</MenuItem>}
@@ -113,11 +116,16 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
       )}
       {supportsFill && (
         <FormControl size="small" fullWidth>
-          <InputLabel>{t('property.contourDirection')}</InputLabel>
+          <InputLabel shrink>{t('property.contourDirection')}</InputLabel>
           <Select
             value={direction ?? ''}
             label={t('property.contourDirection')}
             displayEmpty={direction === null}
+            renderValue={(selected) => String(selected) === ''
+              ? t('common.mixed')
+              : selected === 'clockwise'
+                ? t('process.clockwise')
+                : t('process.counterclockwise')}
             onChange={(event) => onPatch({
               contourDirection: event.target.value as ProcessSpec['contourDirection'],
             })}
