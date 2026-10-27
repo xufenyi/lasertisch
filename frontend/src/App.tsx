@@ -32,6 +32,24 @@ export default function App() {
   const setSelection = useEditorStore((state) => state.setSelection);
   const setTool = useEditorStore((state) => state.setTool);
   const setStatus = useEditorStore((state) => state.setStatus);
+  const undo = useEditorStore((state) => state.undo);
+  const redo = useEditorStore((state) => state.redo);
+  const isDirty = useEditorStore((state) => state.isDirty);
+  const projectName = useEditorStore((state) => state.document.projectName);
+
+  useEffect(() => {
+    window.document.title = `${isDirty ? '* ' : ''}${projectName} — LaserTisch`;
+  }, [isDirty, projectName]);
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (!status) return;
@@ -47,7 +65,15 @@ export default function App() {
         target?.isContentEditable ||
         Boolean(target?.closest('[role="listbox"], [role="menu"]'));
       if (editing) return;
-      if (event.key === 'Delete' || event.key === 'Backspace') {
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && !event.altKey && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+      } else if (modifier && !event.altKey && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        redo();
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
         deleteSelected();
       } else if (event.key === 'Escape') {
@@ -66,7 +92,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deleteSelected, setSelection, setTool]);
+  }, [deleteSelected, redo, setSelection, setTool, undo]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -78,7 +104,9 @@ export default function App() {
             {status && <Alert className="canvas-alert" severity="warning">{t(status)}</Alert>}
             <CanvasSurface ref={canvasRef} />
             <Box className="status-bar">
-              <Typography variant="caption">{t('status.ready')}</Typography>
+              <Typography variant="caption">
+                {projectName}{isDirty ? ' *' : ''} · {t('status.ready')}
+              </Typography>
               <Typography variant="caption">{t('status.objectCount', { count: objectCount })}</Typography>
             </Box>
           </Box>

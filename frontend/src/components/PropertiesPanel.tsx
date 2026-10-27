@@ -16,12 +16,32 @@ import {
   Typography,
 } from '@mui/material';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
+import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
 import { useTranslation } from 'react-i18next';
 
 import { formatUmAsMillimetres, parseMillimetresToUm } from '../domain/units';
 import type { EditableEntity, EntityId, WorkAreaSettings } from '../domain/model';
 import { useEditorStore } from '../state/editorStore';
 import { GeometryForm } from './GeometryForm';
+import { ProcessForm } from './ProcessForm';
+
+function ProjectNameField({ name }: { name: string }) {
+  const { t } = useTranslation();
+  const updateProjectName = useEditorStore((state) => state.updateProjectName);
+  return (
+    <TextField
+      key={name}
+      size="small"
+      label={t('project.name')}
+      defaultValue={name}
+      slotProps={{ htmlInput: { maxLength: 200 } }}
+      onBlur={(event) => {
+        if (!updateProjectName(event.target.value)) event.target.value = name;
+      }}
+    />
+  );
+}
 
 function WorkAreaFields({ workArea }: { workArea: WorkAreaSettings }) {
   const { t } = useTranslation();
@@ -104,14 +124,53 @@ function GridSpacingField({ spacingUm }: { spacingUm: number }) {
   );
 }
 
+function GlobalSettingsFields() {
+  const { t } = useTranslation();
+  const settings = useEditorStore((state) => state.document.globalSettings);
+  const updateGlobalSettings = useEditorStore((state) => state.updateGlobalSettings);
+  const setStatus = useEditorStore((state) => state.setStatus);
+  return (
+    <Stack spacing={1.25}>
+      <Divider />
+      <Typography variant="subtitle2">{t('panel.globalSettings')}</Typography>
+      <TextField
+        key={settings.travelSpeedUmPerSec}
+        size="small"
+        type="number"
+        label={`${t('property.travelSpeed')} (${t('unit.millimetresPerSecond')})`}
+        defaultValue={formatUmAsMillimetres(settings.travelSpeedUmPerSec)}
+        slotProps={{ htmlInput: { inputMode: 'decimal', min: 0.001, step: 'any' } }}
+        onBlur={(event) => {
+          try {
+            const travelSpeedUmPerSec = parseMillimetresToUm(event.target.value);
+            if (!updateGlobalSettings({ travelSpeedUmPerSec })) throw new Error('rejected');
+          } catch {
+            event.target.value = formatUmAsMillimetres(settings.travelSpeedUmPerSec);
+            setStatus('error.invalidValue');
+          }
+        }}
+      />
+      <Typography variant="caption" color="text.secondary">
+        {t('panel.fixedGlobalRules')}
+      </Typography>
+    </Stack>
+  );
+}
+
 function ObjectListItem({
   entity,
   selected,
   onSelect,
+  orderIndex,
+  orderLength,
+  onMove,
 }: {
   entity: EditableEntity;
   selected: boolean;
   onSelect: (event: React.MouseEvent) => void;
+  orderIndex: number;
+  orderLength: number;
+  onMove: (direction: -1 | 1) => void;
 }) {
   const { t } = useTranslation();
   const renameEntity = useEditorStore((state) => state.renameEntity);
@@ -130,24 +189,42 @@ function ObjectListItem({
   return (
     <ListItem
       disablePadding
-      secondaryAction={
-        <Tooltip title={t('panel.rename')}>
-          <IconButton
-            size="small"
-            edge="end"
-            aria-label={t('panel.rename')}
-            onClick={(event) => {
-              event.stopPropagation();
-              setDraft(entity.name);
-              setEditing(true);
-            }}
-          >
-            <EditRoundedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      }
+      secondaryAction={(
+        <Stack direction="row" spacing={0}>
+          <Tooltip title={t('panel.moveEarlier')}>
+            <span><IconButton
+              size="small"
+              disabled={orderIndex === 0}
+              aria-label={t('panel.moveEarlier')}
+              onClick={(event) => { event.stopPropagation(); onMove(-1); }}
+            ><ArrowUpwardRoundedIcon fontSize="small" /></IconButton></span>
+          </Tooltip>
+          <Tooltip title={t('panel.moveLater')}>
+            <span><IconButton
+              size="small"
+              disabled={orderIndex === orderLength - 1}
+              aria-label={t('panel.moveLater')}
+              onClick={(event) => { event.stopPropagation(); onMove(1); }}
+            ><ArrowDownwardRoundedIcon fontSize="small" /></IconButton></span>
+          </Tooltip>
+          <Tooltip title={t('panel.rename')}>
+            <IconButton
+              size="small"
+              edge="end"
+              aria-label={t('panel.rename')}
+              onClick={(event) => {
+                event.stopPropagation();
+                setDraft(entity.name);
+                setEditing(true);
+              }}
+            >
+              <EditRoundedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )}
     >
-      <ListItemButton component="div" selected={selected} onClick={onSelect} sx={{ pr: 6 }}>
+      <ListItemButton component="div" selected={selected} onClick={onSelect} sx={{ pr: 14 }}>
         {editing ? (
           <TextField
             autoFocus
@@ -168,7 +245,10 @@ function ObjectListItem({
             onBlur={finishEditing}
           />
         ) : (
-          <ListItemText primary={entity.name} secondary={t(`tool.${entity.kind}`)} />
+          <ListItemText
+            primary={entity.name}
+            secondary={`${orderIndex + 1}. ${t(`tool.${entity.kind}`)}`}
+          />
         )}
       </ListItemButton>
     </ListItem>
@@ -183,9 +263,16 @@ export function PropertiesPanel() {
   const setSelection = useEditorStore((state) => state.setSelection);
   const updateGrid = useEditorStore((state) => state.updateGrid);
   const deleteSelected = useEditorStore((state) => state.deleteSelected);
+  const updateSelectedProcess = useEditorStore((state) => state.updateSelectedProcess);
+  const updateDefaultProcess = useEditorStore((state) => state.updateDefaultProcess);
+  const moveProcessingOrder = useEditorStore((state) => state.moveProcessingOrder);
   const selected = document.entities
     .filter((entity) => selectionIds.includes(entity.id))
     .map((entity) => transientEntities[entity.id] ?? entity);
+  const byId = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const orderedEntities = document.processingOrder
+    .map((id) => byId.get(id))
+    .filter((entity): entity is EditableEntity => Boolean(entity));
 
   return (
     <Box className="properties-panel">
@@ -194,16 +281,32 @@ export function PropertiesPanel() {
       </Typography>
       <Box sx={{ mt: 1 }}>
         {selected.length === 1 ? (
-          <GeometryForm entity={selected[0]} />
+          <Stack spacing={1.5}>
+            <GeometryForm entity={selected[0]} />
+            <ProcessForm
+              title={t('panel.processing')}
+              processes={[selected[0].process]}
+              supportsFill={selected[0].kind !== 'line'}
+              onPatch={updateSelectedProcess}
+            />
+          </Stack>
         ) : selected.length > 1 ? (
           <Stack spacing={1.5}>
             <Typography>{t('panel.selectionCount', { count: selected.length })}</Typography>
+            <ProcessForm
+              title={t('panel.batchProcessing')}
+              processes={selected.map((entity) => entity.process)}
+              supportsFill={selected.every((entity) => entity.kind !== 'line')}
+              onPatch={updateSelectedProcess}
+            />
             <Button color="error" variant="outlined" onClick={deleteSelected}>
               {t('common.delete')}
             </Button>
           </Stack>
         ) : (
           <Stack spacing={1.25}>
+            <ProjectNameField name={document.projectName} />
+            <Divider />
             <Typography variant="subtitle2">{t('panel.workArea')}</Typography>
             <WorkAreaFields workArea={document.workArea} />
             <Divider />
@@ -236,6 +339,13 @@ export function PropertiesPanel() {
               }
               label={t('panel.snapResize')}
             />
+            <ProcessForm
+              title={t('panel.defaultProcessing')}
+              processes={[document.defaultProcess]}
+              supportsFill
+              onPatch={updateDefaultProcess}
+            />
+            <GlobalSettingsFields />
           </Stack>
         )}
       </Box>
@@ -245,11 +355,14 @@ export function PropertiesPanel() {
         {t('panel.objects')}
       </Typography>
       <List dense disablePadding sx={{ mt: 0.5 }}>
-        {document.entities.map((entity) => (
+        {orderedEntities.map((entity, orderIndex) => (
           <ObjectListItem
             key={entity.id}
             entity={entity}
             selected={selectionIds.includes(entity.id)}
+            orderIndex={orderIndex}
+            orderLength={orderedEntities.length}
+            onMove={(direction) => moveProcessingOrder(entity.id, direction)}
             onSelect={(event) => {
               if (event.ctrlKey || event.metaKey) {
                 setSelection(

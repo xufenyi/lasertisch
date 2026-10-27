@@ -23,6 +23,7 @@ import {
   TOOL_SHORTCUT_KEY,
 } from '../editor/toolShortcuts';
 import { useEditorStore } from '../state/editorStore';
+import { ProjectActions } from './ProjectActions';
 
 const toolButtonSx = {
   color: 'text.secondary',
@@ -46,6 +47,7 @@ export function EditorToolbar({ onFit }: { onFit: () => void }) {
       <Typography variant="h6" sx={{ px: 1, fontWeight: 700 }}>
         LaserTisch
       </Typography>
+      <ProjectActions />
       <ToggleButtonGroup exclusive size="small" value={tool} aria-label="editor tool">
         <Tooltip title={`${t('tool.select')} (${TOOL_SHORTCUT_KEY.select})`}>
           <ToggleButton

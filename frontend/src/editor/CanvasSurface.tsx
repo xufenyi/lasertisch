@@ -21,10 +21,10 @@ import {
 import {
   BASE_PIXELS_PER_MM,
   createEntityId,
-  DEFAULT_PROCESS,
   type EditableEntity,
   type EntityId,
   type PointUm,
+  type ProcessSpec,
   type Tool,
   type WorkAreaSettings,
 } from '../domain/model';
@@ -153,13 +153,14 @@ function rectangleFromDrag(
   end: PointUm,
   sequence: number,
   workArea: WorkAreaSettings,
+  defaultProcess: ProcessSpec,
 ): EditableEntity | null {
   const widthUm = Math.abs(end.xUm - start.xUm);
   const heightUm = Math.abs(end.yUm - start.yUm);
   if (!widthUm || !heightUm) return null;
   const entity: EditableEntity = {
     id: createEntityId(), kind: 'rectangle', name: `Rectangle ${sequence}`,
-    visible: true, locked: false, process: { ...DEFAULT_PROCESS },
+    visible: true, locked: false, process: { ...defaultProcess },
     center: { xUm: Math.round((start.xUm + end.xUm) / 2), yUm: Math.round((start.yUm + end.yUm) / 2) },
     widthUm, heightUm, rotationTenthsDeg: 0,
   };
@@ -171,6 +172,7 @@ function lineFromDrag(
   end: PointUm,
   sequence: number,
   workArea: WorkAreaSettings,
+  defaultProcess: ProcessSpec,
 ): EditableEntity | null {
   if (
     (start.xUm === end.xUm && start.yUm === end.yUm) ||
@@ -179,7 +181,14 @@ function lineFromDrag(
   ) return null;
   return {
     id: createEntityId(), kind: 'line', name: `Line ${sequence}`,
-    visible: true, locked: false, process: { ...DEFAULT_PROCESS }, start, end,
+    visible: true,
+    locked: false,
+    process: {
+      ...defaultProcess,
+      mode: defaultProcess.mode === 'none' ? 'none' : 'contour',
+    },
+    start,
+    end,
   };
 }
 
@@ -507,8 +516,20 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       drawSessionRef.current = null;
       const sequence = state.document.entities.length + 1;
       const entity = session.tool === 'rectangle'
-        ? rectangleFromDrag(session.start, current, sequence, state.document.workArea)
-        : lineFromDrag(session.start, current, sequence, state.document.workArea);
+        ? rectangleFromDrag(
+            session.start,
+            current,
+            sequence,
+            state.document.workArea,
+            state.document.defaultProcess,
+          )
+        : lineFromDrag(
+            session.start,
+            current,
+            sequence,
+            state.document.workArea,
+            state.document.defaultProcess,
+          );
       if (entity) {
         state.addEntity(entity);
         state.setTool('select');
