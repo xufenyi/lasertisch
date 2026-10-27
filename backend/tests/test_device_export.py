@@ -1,13 +1,14 @@
 from base64 import b64decode
+import struct
 from uuid import UUID
 
 import pytest
-from csv_dbd_converter.dbd_codec import decode_dbd
 
 from lasertisch.application import export_device_program_payload
 from lasertisch.cam import plan_document
 from lasertisch.device.errors import DeviceExportError
 from lasertisch.device.exporter import export_toolpath, motion_commands_for_plan
+from lasertisch.device.protocol import JUMP_ABSOLUTE_COMMAND, MARK_ABSOLUTE_COMMAND
 from lasertisch.domain.bridge import ExportFormat
 from lasertisch.domain.models import LineEntity, PointUm, ProjectDocument
 
@@ -57,10 +58,14 @@ def test_csv_and_dbd_use_the_same_motion_command_stream() -> None:
         "jump,10,-2,10000",
         "mark,20,3,900",
     ]
-    restored = decode_dbd(dbd_program.content)
-    assert [item.kind for item in restored] == ["jump", "jump", "mark"]
-    assert restored[-1].x_mm == pytest.approx(20.0)
-    assert restored[-1].y_mm == pytest.approx(3.0)
+    # Seven header parameters occupy 39 bytes. Two jumps follow, then a
+    # mark-speed parameter and the final absolute mark command.
+    assert struct.unpack_from("<H", dbd_program.content, 39)[0] == JUMP_ABSOLUTE_COMMAND
+    assert struct.unpack_from("<H", dbd_program.content, 49)[0] == JUMP_ABSOLUTE_COMMAND
+    assert struct.unpack_from("<H", dbd_program.content, 66)[0] == MARK_ABSOLUTE_COMMAND
+    x_inch, y_inch = struct.unpack_from("<ff", dbd_program.content, 68)
+    assert x_inch * 25.4 == pytest.approx(20.0)
+    assert y_inch * 25.4 == pytest.approx(3.0)
     assert csv_program.command_count == dbd_program.command_count == 3
 
 

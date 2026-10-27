@@ -61,7 +61,15 @@ def create_window(entry: Path | None = None):
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Start the LaserTisch desktop app")
     parser.add_argument("--debug", action="store_true", help="enable webview debugging")
+    parser.add_argument("--self-test", action="store_true", help=argparse.SUPPRESS)
     options = parser.parse_args(argv)
+
+    if options.self_test:
+        from lasertisch.device.protocol import MotionCommand, encode_dbd
+
+        find_web_entry()
+        encode_dbd([MotionCommand("jump", 0.0, 0.0, 10_000.0)])
+        return 0
 
     import webview
 

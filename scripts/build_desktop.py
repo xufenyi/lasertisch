@@ -25,7 +25,7 @@ def _require(command: str) -> str:
 
 def _bundle_path() -> Path:
     if sys.platform == "win32":
-        return PROJECT_ROOT / "dist" / "LaserTisch" / "LaserTisch.exe"
+        return PROJECT_ROOT / "dist" / "LaserTisch.exe"
     if sys.platform == "darwin":
         return PROJECT_ROOT / "dist" / "LaserTisch.app"
     return PROJECT_ROOT / "dist" / "LaserTisch" / "LaserTisch"
@@ -67,6 +67,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     bundle = _bundle_path()
     if not bundle.exists():
         raise RuntimeError(f"desktop bundle was not created: {bundle}")
+    smoke_target = (
+        bundle / "Contents" / "MacOS" / "LaserTisch"
+        if sys.platform == "darwin"
+        else bundle
+    )
+    subprocess.run([str(smoke_target), "--self-test"], check=True, timeout=120)
     print(bundle)
     return 0
 

@@ -23,7 +23,6 @@ analysis = Analysis(
     [str(project_root / "backend" / "scripts" / "run_desktop.py")],
     pathex=[
         str(project_root / "backend" / "src"),
-        str(project_root / "csv-dbd-converter" / "src"),
     ],
     binaries=extra_binaries,
     datas=[(str(frontend_dist), "web")],
@@ -37,33 +36,61 @@ analysis = Analysis(
 )
 pyz = PYZ(analysis.pure)
 
-executable = EXE(
-    pyz,
-    analysis.scripts,
-    [],
-    exclude_binaries=True,
-    name="LaserTisch",
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-)
-
-bundle = COLLECT(
-    executable,
-    analysis.binaries,
-    analysis.datas,
-    strip=False,
-    upx=True,
-    name="LaserTisch",
-)
-
-if sys.platform == "darwin":
+if sys.platform == "win32":
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        analysis.binaries,
+        analysis.datas,
+        [],
+        name="LaserTisch",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+    )
+elif sys.platform == "darwin":
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        analysis.binaries,
+        analysis.datas,
+        [],
+        name="LaserTisch",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+    )
     app = BUNDLE(
-        bundle,
+        executable,
         name="LaserTisch.app",
         icon=None,
         bundle_identifier="local.lasertisch.app",
+    )
+else:
+    executable = EXE(
+        pyz,
+        analysis.scripts,
+        [],
+        exclude_binaries=True,
+        name="LaserTisch",
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        console=False,
+        disable_windowed_traceback=False,
+    )
+    bundle = COLLECT(
+        executable,
+        analysis.binaries,
+        analysis.datas,
+        strip=False,
+        upx=True,
+        name="LaserTisch",
     )

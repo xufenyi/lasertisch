@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from csv_dbd_converter.csv_io import encode_motion_csv
-from csv_dbd_converter.dbd_codec import encode_dbd
-from csv_dbd_converter.models import MotionCommand, MotionKind
-
 from lasertisch.domain.bridge import ExportFormat, LaserState, ToolpathPlan
 from lasertisch.domain.models import PointUm
 
 from .errors import DeviceExportError
+from .protocol import MotionCommand, MotionKind, encode_dbd, encode_motion_csv
 
 
 UM_PER_MM = 1_000
