@@ -1,0 +1,266 @@
+{
+  "$defs": {
+    "ApiIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ApiIssue",
+      "type": "object"
+    },
+    "ContourDirection": {
+      "enum": [
+        "clockwise",
+        "counterclockwise"
+      ],
+      "title": "ContourDirection",
+      "type": "string"
+    },
+    "PointUm": {
+      "additionalProperties": false,
+      "properties": {
+        "xUm": {
+          "title": "Xum",
+          "type": "integer"
+        },
+        "yUm": {
+          "title": "Yum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "xUm",
+        "yUm"
+      ],
+      "title": "PointUm",
+      "type": "object"
+    },
+    "PolygonEntity": {
+      "additionalProperties": false,
+      "description": "Local straight-edge rings and their rigid placement in world coordinates.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "polygon",
+          "default": "polygon",
+          "title": "Kind",
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "rotationTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Rotationtenthsdeg",
+          "type": "integer"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/PolygonPart"
+          },
+          "minItems": 1,
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "parts"
+      ],
+      "title": "PolygonEntity",
+      "type": "object"
+    },
+    "PolygonPart": {
+      "additionalProperties": false,
+      "properties": {
+        "outerRing": {
+          "items": {
+            "$ref": "#/$defs/PointUm"
+          },
+          "minItems": 3,
+          "title": "Outerring",
+          "type": "array"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/PointUm"
+            },
+            "minItems": 3,
+            "type": "array"
+          },
+          "title": "Holes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outerRing"
+      ],
+      "title": "PolygonPart",
+      "type": "object"
+    },
+    "ProcessMode": {
+      "enum": [
+        "none",
+        "contour",
+        "fill",
+        "fill_then_contour",
+        "contour_then_fill"
+      ],
+      "title": "ProcessMode",
+      "type": "string"
+    },
+    "ProcessSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/ProcessMode",
+          "default": "contour"
+        },
+        "markSpeedUmPerSec": {
+          "default": 900000,
+          "exclusiveMinimum": 0,
+          "title": "Markspeedumpersec",
+          "type": "integer"
+        },
+        "fillAngleTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Fillangletenthsdeg",
+          "type": "integer"
+        },
+        "hatchSpacingUm": {
+          "default": 80,
+          "exclusiveMinimum": 0,
+          "title": "Hatchspacingum",
+          "type": "integer"
+        },
+        "contourDirection": {
+          "$ref": "#/$defs/ContourDirection",
+          "default": "clockwise"
+        }
+      },
+      "title": "ProcessSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "documentRevision": {
+      "minimum": 0,
+      "title": "Documentrevision",
+      "type": "integer"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "result": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PolygonEntity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "empty": {
+      "default": false,
+      "title": "Empty",
+      "type": "boolean"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requestId",
+    "documentRevision",
+    "ok"
+  ],
+  "title": "BooleanResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/boolean-response-v1.schema.json"
+}

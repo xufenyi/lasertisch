@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { isEntityInWorkArea } from '../domain/geometry';
 import { isValidPolygon } from '../domain/polygonGeometry';
 import { ellipseToPolygon, isValidEllipse } from '../domain/ellipseGeometry';
+import type { BooleanPreview } from '../domain/boolean';
 import {
   deletePolygonVertex, insertPolygonVertex, movePolygonVertex, polygonFromPoints, polygonRing,
   reconcilePolygonEdit, type PolygonEditState, type PolygonVertexAddress,
@@ -31,6 +32,7 @@ interface EditorState {
   transientEntities: Record<EntityId, EditableEntity>;
   polygonDraft: PointUm[];
   polygonEdit: PolygonEditState | null;
+  booleanPreview: BooleanPreview | null;
   tool: Tool;
   status: string | null;
   undoStack: EditorDocument[];
@@ -51,6 +53,9 @@ interface EditorState {
   startPolygonEdit: (id: EntityId) => void;
   finishPolygonEdit: () => void;
   convertEllipseToPolygon: (id: EntityId) => boolean;
+  setBooleanPreview: (preview: BooleanPreview) => boolean;
+  clearBooleanPreview: () => void;
+  applyBooleanPreview: (requestId: string, keepOriginals: boolean, allowEmpty: boolean, name: string) => boolean;
   selectPolygonVertex: (vertex: PolygonVertexAddress) => void;
   moveSelectedVertex: (point: PointUm) => boolean;
   insertSelectedVertex: (point?: PointUm) => boolean;
@@ -87,6 +92,7 @@ function committedDocument(state: EditorState, document: EditorDocument) {
     redoStack: [],
     transientEntities: {},
     polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
+    booleanPreview: null,
     isDirty: fingerprint(document) !== state.savedFingerprint,
     status: null,
   };
@@ -124,6 +130,17 @@ function closedGeometryError(entity: EditableEntity, workArea: WorkAreaSettings)
   return null;
 }
 
+function booleanOperands(state: EditorState, preview: BooleanPreview) {
+  const a = state.document.entities.find((entity) => entity.id === preview.operandAId);
+  const b = state.document.entities.find((entity) => entity.id === preview.operandBId);
+  if (state.documentRevision !== preview.documentRevision || state.tool !== 'select' || state.polygonEdit ||
+    Object.keys(state.transientEntities).length || state.selectionIds.length !== 2 ||
+    !state.selectionIds.includes(preview.operandAId) || !state.selectionIds.includes(preview.operandBId) ||
+    preview.operandAId === preview.operandBId || !a || !b || a.kind === 'line' || b.kind === 'line' ||
+    a.locked || b.locked || !a.visible || !b.visible) return null;
+  return { a, b };
+}
+
 export function isValidEntityName(name: string): boolean {
   return name.length > 0 && name.length <= 200 && !/[<>:"/\\|?*\u0000-\u001f]/.test(name);
 }
@@ -137,6 +154,7 @@ export const useEditorStore = create<EditorState>((set) => {
     transientEntities: {},
     polygonDraft: [],
     polygonEdit: null,
+    booleanPreview: null,
     tool: 'select',
     status: null,
     undoStack: [],
@@ -184,6 +202,7 @@ export const useEditorStore = create<EditorState>((set) => {
 
     setTransientEntities: (entities) => set({
       transientEntities: Object.fromEntries(entities.map((entity) => [entity.id, entity])),
+      booleanPreview: null,
     }),
     clearTransientEntities: () => set({ transientEntities: {} }),
 
@@ -203,8 +222,8 @@ export const useEditorStore = create<EditorState>((set) => {
 
     setSelection: (ids) => set((state) => sameIds(state.selectionIds, ids)
       ? state
-      : { selectionIds: ids, transientEntities: {}, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
-    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, transientEntities: {} }),
+      : { selectionIds: ids, transientEntities: {}, booleanPreview: null, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
+    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, booleanPreview: null, transientEntities: {} }),
 
     appendPolygonPoint: (point) => {
       let accepted = false;
@@ -238,10 +257,46 @@ export const useEditorStore = create<EditorState>((set) => {
     startPolygonEdit: (id) => set((state) => {
       const entity = state.document.entities.find((item) => item.id === id);
       if (entity?.kind !== 'polygon' || entity.locked || !entity.visible) return {};
-      return { tool: 'select', selectionIds: [id], polygonDraft: [], transientEntities: {}, status: null,
+      return { tool: 'select', selectionIds: [id], polygonDraft: [], transientEntities: {}, booleanPreview: null, status: null,
         polygonEdit: { entityId: id, vertex: { partIndex: 0, ringIndex: 0, vertexIndex: 0 } } };
     }),
     finishPolygonEdit: () => set({ polygonEdit: null, transientEntities: {}, status: null }),
+    setBooleanPreview: (preview) => {
+      let accepted = false;
+      set((state) => {
+        if (!booleanOperands(state, preview) || preview.empty !== (preview.result === null)) return {};
+        if (preview.result && (closedGeometryError(preview.result, state.document.workArea) ||
+          state.document.entities.some((entity) => entity.id === preview.result!.id))) return {};
+        accepted = true;
+        return { booleanPreview: preview, status: null };
+      });
+      return accepted;
+    },
+    clearBooleanPreview: () => set({ booleanPreview: null }),
+    applyBooleanPreview: (requestId, keepOriginals, allowEmpty, name) => {
+      let accepted = false;
+      set((state) => {
+        const preview = state.booleanPreview;
+        const operands = preview && booleanOperands(state, preview);
+        if (!preview || preview.requestId !== requestId || !operands) return { booleanPreview: null, status: 'boolean.stale' };
+        if (preview.empty && (keepOriginals || !allowEmpty)) return { status: 'boolean.emptyNeedsConfirmation' };
+        const result = preview.result ? { ...preview.result, name, process: { ...operands.a.process }, visible: true, locked: false } : null;
+        if (result && (!isValidEntityName(name) || closedGeometryError(result, state.document.workArea) ||
+          state.document.entities.some((entity) => entity.id === result.id))) return { status: 'error.invalidPolygon' };
+        const entities = state.document.entities.flatMap((entity) => {
+          if (entity.id === preview.operandAId) return keepOriginals ? [entity, ...(result ? [result] : [])] : result ? [result] : [];
+          return entity.id === preview.operandBId && !keepOriginals ? [] : [entity];
+        });
+        const processingOrder = state.document.processingOrder.flatMap((id) => {
+          if (id === preview.operandAId) return keepOriginals ? [id, ...(result ? [result.id] : [])] : result ? [result.id] : [];
+          return id === preview.operandBId && !keepOriginals ? [] : [id];
+        });
+        accepted = true;
+        return { ...committedDocument(state, { ...state.document, entities, processingOrder }),
+          selectionIds: result ? [result.id] : [], booleanPreview: null, polygonEdit: null, transientEntities: {} };
+      });
+      return accepted;
+    },
     convertEllipseToPolygon: (id) => {
       let accepted = false;
       set((state) => {
@@ -402,6 +457,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
+        booleanPreview: null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -419,6 +475,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
+        booleanPreview: null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -432,6 +489,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: [],
         transientEntities: {},
         polygonDraft: [], polygonEdit: null,
+        booleanPreview: null,
         tool: 'select',
         undoStack: [],
         redoStack: [],
@@ -447,6 +505,7 @@ export const useEditorStore = create<EditorState>((set) => {
       selectionIds: [],
       transientEntities: {},
       polygonDraft: [], polygonEdit: null,
+      booleanPreview: null,
       tool: 'select',
       undoStack: [],
       redoStack: [],

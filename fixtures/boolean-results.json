@@ -1,0 +1,480 @@
+[
+  {
+    "name": "union",
+    "operation": "union",
+    "operandAId": "00000000-0000-4000-8000-000000000200",
+    "operandBId": "00000000-0000-4000-8000-000000000201",
+    "result": {
+      "id": "d1ac9454-9dbd-4657-a147-f0d39db9646d",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": -37500,
+        "yUm": 45000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -32500,
+              "yUm": -17500
+            },
+            {
+              "xUm": -32500,
+              "yUm": 17500
+            },
+            {
+              "xUm": 17500,
+              "yUm": 17500
+            },
+            {
+              "xUm": 17500,
+              "yUm": 7500
+            },
+            {
+              "xUm": 32500,
+              "yUm": 7500
+            },
+            {
+              "xUm": 32500,
+              "yUm": -17500
+            },
+            {
+              "xUm": 17500,
+              "yUm": -17500
+            },
+            {
+              "xUm": -7500,
+              "yUm": -17500
+            }
+          ],
+          "holes": []
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "intersection",
+    "operation": "intersection",
+    "operandAId": "00000000-0000-4000-8000-000000000200",
+    "operandBId": "00000000-0000-4000-8000-000000000201",
+    "result": {
+      "id": "af75d40c-e1e5-43e4-ab07-fbe1b9257f94",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": -32500,
+        "yUm": 40000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -12500,
+              "yUm": -12500
+            },
+            {
+              "xUm": -12500,
+              "yUm": 12500
+            },
+            {
+              "xUm": 12500,
+              "yUm": 12500
+            },
+            {
+              "xUm": 12500,
+              "yUm": -12500
+            }
+          ],
+          "holes": []
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "difference",
+    "operation": "difference",
+    "operandAId": "00000000-0000-4000-8000-000000000200",
+    "operandBId": "00000000-0000-4000-8000-000000000201",
+    "result": {
+      "id": "79fe1613-90e6-4dd5-b866-1913715322ce",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": -45000,
+        "yUm": 45000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -25000,
+              "yUm": -17500
+            },
+            {
+              "xUm": -25000,
+              "yUm": 17500
+            },
+            {
+              "xUm": 25000,
+              "yUm": 17500
+            },
+            {
+              "xUm": 25000,
+              "yUm": 7500
+            },
+            {
+              "xUm": 0,
+              "yUm": 7500
+            },
+            {
+              "xUm": 0,
+              "yUm": -17500
+            }
+          ],
+          "holes": []
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "hole",
+    "operation": "difference",
+    "operandAId": "00000000-0000-4000-8000-000000000202",
+    "operandBId": "00000000-0000-4000-8000-000000000203",
+    "result": {
+      "id": "f6eb18a9-7bd7-48f4-9ccc-3c72112d5a91",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": 40000,
+        "yUm": 40000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -30000,
+              "yUm": -20000
+            },
+            {
+              "xUm": -30000,
+              "yUm": 20000
+            },
+            {
+              "xUm": 30000,
+              "yUm": 20000
+            },
+            {
+              "xUm": 30000,
+              "yUm": -20000
+            }
+          ],
+          "holes": [
+            [
+              {
+                "xUm": -12500,
+                "yUm": -7500
+              },
+              {
+                "xUm": 12500,
+                "yUm": -7500
+              },
+              {
+                "xUm": 12500,
+                "yUm": 7500
+              },
+              {
+                "xUm": -12500,
+                "yUm": 7500
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "split",
+    "operation": "difference",
+    "operandAId": "00000000-0000-4000-8000-000000000204",
+    "operandBId": "00000000-0000-4000-8000-000000000205",
+    "result": {
+      "id": "d86a7bf4-a689-4c57-99a8-c5a43b4f7fc8",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": -40000,
+        "yUm": -35000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": 5000,
+              "yUm": -20000
+            },
+            {
+              "xUm": 5000,
+              "yUm": 20000
+            },
+            {
+              "xUm": 30000,
+              "yUm": 20000
+            },
+            {
+              "xUm": 30000,
+              "yUm": -20000
+            }
+          ],
+          "holes": []
+        },
+        {
+          "outerRing": [
+            {
+              "xUm": -30000,
+              "yUm": -20000
+            },
+            {
+              "xUm": -30000,
+              "yUm": 20000
+            },
+            {
+              "xUm": -5000,
+              "yUm": 20000
+            },
+            {
+              "xUm": -5000,
+              "yUm": -20000
+            }
+          ],
+          "holes": []
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "ellipse",
+    "operation": "intersection",
+    "operandAId": "00000000-0000-4000-8000-000000000206",
+    "operandBId": "00000000-0000-4000-8000-000000000207",
+    "result": {
+      "id": "59a9e505-68f0-4e29-994b-7e89833c6c5b",
+      "name": "Boolean result",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "kind": "polygon",
+      "position": {
+        "xUm": 45000,
+        "yUm": -35000
+      },
+      "rotationTenthsDeg": 0,
+      "parts": [
+        {
+          "outerRing": [
+            {
+              "xUm": -17310,
+              "yUm": -6647
+            },
+            {
+              "xUm": -11255,
+              "yUm": 15950
+            },
+            {
+              "xUm": -10341,
+              "yUm": 16103
+            },
+            {
+              "xUm": -8264,
+              "yUm": 16280
+            },
+            {
+              "xUm": -6107,
+              "yUm": 16301
+            },
+            {
+              "xUm": -3890,
+              "yUm": 16163
+            },
+            {
+              "xUm": -1637,
+              "yUm": 15871
+            },
+            {
+              "xUm": 632,
+              "yUm": 15426
+            },
+            {
+              "xUm": 2896,
+              "yUm": 14832
+            },
+            {
+              "xUm": 5130,
+              "yUm": 14095
+            },
+            {
+              "xUm": 7316,
+              "yUm": 13223
+            },
+            {
+              "xUm": 9431,
+              "yUm": 12223
+            },
+            {
+              "xUm": 11456,
+              "yUm": 11105
+            },
+            {
+              "xUm": 13370,
+              "yUm": 9881
+            },
+            {
+              "xUm": 15156,
+              "yUm": 8562
+            },
+            {
+              "xUm": 16796,
+              "yUm": 7159
+            },
+            {
+              "xUm": 17310,
+              "yUm": 6647
+            },
+            {
+              "xUm": 11255,
+              "yUm": -15950
+            },
+            {
+              "xUm": 10341,
+              "yUm": -16103
+            },
+            {
+              "xUm": 8264,
+              "yUm": -16280
+            },
+            {
+              "xUm": 6107,
+              "yUm": -16301
+            },
+            {
+              "xUm": 3890,
+              "yUm": -16163
+            },
+            {
+              "xUm": 1637,
+              "yUm": -15871
+            },
+            {
+              "xUm": -632,
+              "yUm": -15426
+            },
+            {
+              "xUm": -2896,
+              "yUm": -14832
+            },
+            {
+              "xUm": -5130,
+              "yUm": -14095
+            },
+            {
+              "xUm": -7316,
+              "yUm": -13223
+            },
+            {
+              "xUm": -9431,
+              "yUm": -12223
+            },
+            {
+              "xUm": -11456,
+              "yUm": -11105
+            },
+            {
+              "xUm": -13370,
+              "yUm": -9881
+            },
+            {
+              "xUm": -15156,
+              "yUm": -8562
+            },
+            {
+              "xUm": -16796,
+              "yUm": -7159
+            }
+          ],
+          "holes": []
+        }
+      ]
+    },
+    "empty": false
+  },
+  {
+    "name": "empty",
+    "operation": "intersection",
+    "operandAId": "00000000-0000-4000-8000-000000000200",
+    "operandBId": "00000000-0000-4000-8000-000000000202",
+    "result": null,
+    "empty": true
+  }
+]

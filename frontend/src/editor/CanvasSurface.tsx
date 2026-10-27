@@ -142,7 +142,8 @@ function rebuildCanvas(
   registry: Map<EntityId, FabricObject>,
   suppressSelection: React.MutableRefObject<boolean>,
 ): void {
-  const { document, selectionIds, tool, polygonEdit, transientEntities } = useEditorStore.getState();
+  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview } = useEditorStore.getState();
+  const preview = booleanPreview?.documentRevision === documentRevision ? booleanPreview : null;
   const viewport = [...canvas.viewportTransform] as [number, number, number, number, number, number];
   suppressSelection.current = true;
   canvas.clear();
@@ -154,11 +155,17 @@ function rebuildCanvas(
   for (const entity of document.entities) {
     const displayed = polygonEdit ? transientEntities[entity.id] ?? entity : entity;
     const object = entityToFabricObject(displayed, document.workArea, zoom);
+    if (preview && (entity.id === preview.operandAId || entity.id === preview.operandBId)) object.opacity = 0.25;
     registry.set(entity.id, object);
     canvas.add(object);
   }
-  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit));
-  canvas.selection = tool === 'select' && !polygonEdit;
+  if (preview?.result) {
+    const result = entityToFabricObject(preview.result, document.workArea, zoom);
+    result.set({ fill: 'rgba(46, 125, 50, 0.25)', stroke: '#2e7d32', selectable: false, evented: false, excludeFromExport: true });
+    canvas.add(result);
+  }
+  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview));
+  canvas.selection = tool === 'select' && !polygonEdit && !preview;
   if (canvas.selection) applySelection(canvas, registry, selectionIds);
   else canvas.discardActiveObject();
   suppressSelection.current = false;
@@ -368,6 +375,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const tool = useEditorStore((state) => state.tool);
   const polygonDraft = useEditorStore((state) => state.polygonDraft);
   const polygonEdit = useEditorStore((state) => state.polygonEdit);
+  const booleanPreview = useEditorStore((state) => state.booleanPreview);
   const documentRevision = useEditorStore((state) => state.documentRevision);
   const toolpathPlan = usePlanningStore((state) => state.plan);
   const planRevision = usePlanningStore((state) => state.planRevision);
@@ -406,7 +414,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         toolpathOverlayRef.current,
         planningState.planRevision === editorState.documentRevision ? planningState.plan : null,
         editorState.document.workArea,
-        planningState.previewVisible,
+        planningState.previewVisible && !editorState.booleanPreview,
       );
       const edit = editorState.polygonEdit;
       const entity = edit ? editorState.transientEntities[edit.entityId] ?? editorState.document.entities.find((item) => item.id === edit.entityId) : null;
@@ -436,7 +444,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     resize();
 
     const syncSelection = (target: FabricObject | undefined) => {
-      if (useEditorStore.getState().polygonEdit) return;
+      if (useEditorStore.getState().polygonEdit || useEditorStore.getState().booleanPreview) return;
       if (!suppressSelectionRef.current) useEditorStore.getState().setSelection(selectedIds(target));
     };
     instance.on('selection:created', () => syncSelection(instance.getActiveObject()));
@@ -721,7 +729,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
 
   useEffect(() => {
     const state = useEditorStore.getState();
-    if (!canvas || state.polygonEdit || state.tool !== 'select') return;
+    if (!canvas || state.polygonEdit || state.booleanPreview || state.tool !== 'select') return;
     // Fabric selects on pointer-down and starts its transform immediately. Reapplying
     // the same selection here would replace that active object and cancel the drag.
     if (sameSelection(selectedIds(canvas.getActiveObject()), selectionIds)) return;
@@ -739,20 +747,20 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       canvas.remove(drawSessionRef.current.preview); drawSessionRef.current = null;
     }
     refresh(canvas);
-    const selecting = tool === 'select' && !state.polygonEdit;
+    const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview;
     canvas.selection = selecting;
-    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit));
+    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview));
     canvas.defaultCursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
     if (selecting) {
       applySelection(canvas, registryRef.current, state.selectionIds);
-    } else if (!state.polygonEdit) {
+    } else if (!state.polygonEdit && !state.booleanPreview) {
       suppressSelectionRef.current = true;
       canvas.discardActiveObject();
       suppressSelectionRef.current = false;
       state.setSelection([]);
     }
     canvas.requestRenderAll();
-  }, [canvas, tool, polygonEdit?.entityId, refresh]);
+  }, [canvas, tool, polygonEdit?.entityId, booleanPreview?.requestId, refresh]);
 
   useEffect(() => {
     if (canvas) canvas.requestRenderAll();
@@ -776,8 +784,9 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         <canvas ref={elementRef} />
         <canvas className="toolpath-overlay" ref={toolpathOverlayRef} />
         <canvas className="polygon-overlay" ref={polygonOverlayRef} />
-        {(tool === 'polygon' || polygonEdit) && <div className="polygon-hint">
-          {tool === 'polygon' ? t('polygon.drawHint', { count: polygonDraft.length }) : t('polygon.editHint')}
+        {(tool === 'polygon' || polygonEdit || booleanPreview) && <div className="polygon-hint">
+          {booleanPreview ? t('boolean.previewHint') : tool === 'polygon'
+            ? t('polygon.drawHint', { count: polygonDraft.length }) : t('polygon.editHint')}
         </div>}
       </div>
     </div>

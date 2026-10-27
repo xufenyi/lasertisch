@@ -9,7 +9,7 @@ from uuid import UUID
 from pydantic import Field, PositiveInt, model_validator
 
 from .common import ContractModel
-from .models import PointUm, ProjectDocument
+from .models import PointUm, PolygonEntity, ProjectDocument
 
 
 # Kept as a named alias so the generated JSON Schema carries the lower bound.
@@ -80,6 +80,41 @@ class ApiIssue(ContractModel):
     parameters: dict[str, str | int | float | bool | None] = Field(
         default_factory=dict
     )
+
+
+class BooleanOperation(StrEnum):
+    UNION = "union"
+    INTERSECTION = "intersection"
+    DIFFERENCE = "difference"
+
+
+class BooleanRequest(ContractModel):
+    api_version: Literal[1] = 1
+    request_id: UUID
+    document_revision: AnnotatedNonNegativeInt
+    document: ProjectDocument
+    operation: BooleanOperation
+    operand_a_id: UUID
+    operand_b_id: UUID
+
+
+class BooleanResponse(ContractModel):
+    api_version: Literal[1] = 1
+    request_id: UUID
+    document_revision: AnnotatedNonNegativeInt
+    ok: bool
+    result: PolygonEntity | None = None
+    empty: bool = False
+    errors: list[ApiIssue] = Field(default_factory=list)
+    warnings: list[ApiIssue] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_consistent_result(self) -> "BooleanResponse":
+        if self.ok and (self.errors or self.empty != (self.result is None)):
+            raise ValueError("successful boolean requires either a polygon or an empty result")
+        if not self.ok and (not self.errors or self.result is not None or self.empty):
+            raise ValueError("failed boolean requires errors without result data")
+        return self
 
 
 class PlanRequest(ContractModel):

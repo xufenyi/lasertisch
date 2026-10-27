@@ -3,6 +3,7 @@ import type {
   ExportRequest,
   PlanRequest,
 } from '../domain/toolpath';
+import type { BooleanRequest } from '../domain/boolean';
 
 export type NativeSaveResult =
   | { status: 'ok'; filename: string }
@@ -19,6 +20,7 @@ declare global {
     pywebview?: {
       api?: {
         plan_toolpaths?: (request: PlanRequest) => Promise<unknown>;
+        boolean_geometry?: (request: BooleanRequest) => Promise<unknown>;
         export_device_program?: (request: ExportRequest) => Promise<unknown>;
         open_project_file?: () => Promise<unknown>;
         save_project_file?: (filename: string, content: string) => Promise<unknown>;

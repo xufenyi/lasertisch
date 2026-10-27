@@ -27,6 +27,7 @@ import { GeometryForm } from './GeometryForm';
 import { PolygonVertexForm } from './PolygonVertexForm';
 import { ProcessForm } from './ProcessForm';
 import { commitInputOnEnter } from './inputCommit';
+import { BooleanOperationsPanel } from './BooleanOperationsPanel';
 
 function ProjectNameField({ name }: { name: string }) {
   const { t } = useTranslation();
@@ -301,6 +302,7 @@ export function PropertiesPanel() {
         ) : selected.length > 1 ? (
           <Stack spacing={1.5}>
             <Typography>{t('panel.selectionCount', { count: selected.length })}</Typography>
+            <BooleanOperationsPanel />
             <ProcessForm
               title={t('panel.batchProcessing')}
               processes={selected.map((entity) => entity.process)}

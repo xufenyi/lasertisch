@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from lasertisch.domain.bridge import ExportRequest, ExportResponse, PlanRequest, PlanResponse
+from lasertisch.domain.bridge import BooleanRequest, BooleanResponse, ExportRequest, ExportResponse, PlanRequest, PlanResponse
 from lasertisch.domain.common import ContractModel
 from lasertisch.domain.models import ProjectDocument
 
@@ -34,6 +34,8 @@ def main() -> None:
     write_schema("plan-response-v1.schema.json", PlanResponse)
     write_schema("export-request-v1.schema.json", ExportRequest)
     write_schema("export-response-v1.schema.json", ExportResponse)
+    write_schema("boolean-request-v1.schema.json", BooleanRequest)
+    write_schema("boolean-response-v1.schema.json", BooleanResponse)
 
 
 if __name__ == "__main__":

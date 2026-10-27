@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 2,
+  "documentId": "00000000-0000-0000-0000-000000000001",
+  "projectName": "阶段 4：布尔运算验收",
+  "units": "um",
+  "workArea": {
+    "widthUm": 190000,
+    "heightUm": 190000,
+    "center": {
+      "xUm": 0,
+      "yUm": 0
+    },
+    "origin": "center"
+  },
+  "grid": {
+    "visible": true,
+    "spacingUm": 5000,
+    "snapMove": false,
+    "snapResize": false
+  },
+  "defaultProcess": {
+    "mode": "contour",
+    "markSpeedUmPerSec": 900000,
+    "fillAngleTenthsDeg": 0,
+    "hatchSpacingUm": 80,
+    "contourDirection": "clockwise"
+  },
+  "globalSettings": {
+    "travelSpeedUmPerSec": 10000000,
+    "minimumMarkSegmentUm": 100,
+    "initialJumpToOrigin": true
+  },
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000200",
+      "kind": "rectangle",
+      "name": "重叠 A",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -45000,
+        "yUm": 45000
+      },
+      "widthUm": 50000,
+      "heightUm": 35000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000201",
+      "kind": "rectangle",
+      "name": "重叠 B",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -25000,
+        "yUm": 40000
+      },
+      "widthUm": 40000,
+      "heightUm": 25000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "contour",
+        "markSpeedUmPerSec": 400000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000202",
+      "kind": "rectangle",
+      "name": "孔洞 外框",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 40000,
+        "yUm": 40000
+      },
+      "widthUm": 60000,
+      "heightUm": 40000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000203",
+      "kind": "rectangle",
+      "name": "孔洞 内框",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 40000,
+        "yUm": 40000
+      },
+      "widthUm": 25000,
+      "heightUm": 15000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "contour",
+        "markSpeedUmPerSec": 400000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000204",
+      "kind": "rectangle",
+      "name": "分离 A",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -40000,
+        "yUm": -35000
+      },
+      "widthUm": 60000,
+      "heightUm": 40000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000205",
+      "kind": "rectangle",
+      "name": "分离 B",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -40000,
+        "yUm": -35000
+      },
+      "widthUm": 10000,
+      "heightUm": 60000,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "contour",
+        "markSpeedUmPerSec": 400000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000206",
+      "kind": "ellipse",
+      "name": "椭圆 A",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 45000,
+        "yUm": -35000
+      },
+      "widthUm": 48000,
+      "heightUm": 30000,
+      "rotationTenthsDeg": 200,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      },
+      "sides": 64
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000207",
+      "kind": "rectangle",
+      "name": "矩形 B",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 45000,
+        "yUm": -35000
+      },
+      "widthUm": 30000,
+      "heightUm": 45000,
+      "rotationTenthsDeg": 150,
+      "process": {
+        "mode": "contour",
+        "markSpeedUmPerSec": 400000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    }
+  ],
+  "processingOrder": [
+    "00000000-0000-4000-8000-000000000200",
+    "00000000-0000-4000-8000-000000000201",
+    "00000000-0000-4000-8000-000000000202",
+    "00000000-0000-4000-8000-000000000203",
+    "00000000-0000-4000-8000-000000000204",
+    "00000000-0000-4000-8000-000000000205",
+    "00000000-0000-4000-8000-000000000206",
+    "00000000-0000-4000-8000-000000000207"
+  ]
+}

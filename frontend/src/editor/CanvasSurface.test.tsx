@@ -10,6 +10,7 @@ import { getEntityId } from './fabricAdapter';
 import { useEditorStore } from '../state/editorStore';
 import { handlePolygonKey } from './polygonKeyboard';
 import { CanvasSurface } from './CanvasSurface';
+import { booleanDocument, booleanFixture } from '../test/booleanFixtures';
 
 // The real component's event handlers run against a small rendering surface double.
 // Native browser drawing and pointer capture remain part of the manual acceptance.
@@ -83,6 +84,24 @@ describe('ellipse canvas interactions', () => {
     click({xUm:0,yUm:0});
     expect(store().document.entities).toHaveLength(4); expect(store().undoStack).toHaveLength(0);
     expect(store().status).toBe('error.invalidEllipse');
+  });
+});
+
+describe('boolean canvas preview', () => {
+  it('shows a noninteractive green result while retaining faded source geometry and restores it on cancel', () => {
+    act(() => store().loadDocument(booleanDocument()));
+    const p=booleanFixture('hole',store().documentRevision).preview;
+    act(() => store().setSelection([p.operandAId,p.operandBId]));
+    act(() => {expect(store().setBooleanPreview(p)).toBe(true);});
+    const result=drawing.canvas!.getObjects().find((object) => getEntityId(object)===p.result!.id)!;
+    expect(result.stroke).toBe('#2e7d32');expect(result.evented).toBe(false);expect(result.selectable).toBe(false);
+    const source=drawing.canvas!.getObjects().find((object) => getEntityId(object)===p.operandAId)!;
+    expect(source.opacity).toBe(.25);expect(source.evented).toBe(false);
+    expect(drawing.canvas!.getActiveObject()).toBeUndefined();
+    act(() => store().clearBooleanPreview());
+    expect(drawing.canvas!.getObjects().some((object) => getEntityId(object)===p.result!.id)).toBe(false);
+    const restored=drawing.canvas!.getObjects().find((object) => getEntityId(object)===p.operandAId)!;
+    expect(restored.opacity).toBe(1);expect(restored.evented).toBe(true);
   });
 });
 

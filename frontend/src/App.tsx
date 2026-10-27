@@ -46,6 +46,7 @@ export default function App() {
   const documentRevision = useEditorStore((state) => state.documentRevision);
   const planningIssues = usePlanningStore((state) => state.issues);
   const previewVisible = usePlanningStore((state) => state.previewVisible);
+  const booleanPreview = useEditorStore((state) => state.booleanPreview);
   const segmentCount = planRevision === documentRevision
     ? plan?.tasks.reduce((count, task) => count + task.segments.length, 0) ?? 0
     : 0;
@@ -76,7 +77,7 @@ export default function App() {
       const editing = target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.isContentEditable ||
-        Boolean(target?.closest('[role="listbox"], [role="menu"]'));
+        Boolean(target?.closest('[role="listbox"], [role="menu"], [role="combobox"]'));
       if (editing) return;
       if (handlePolygonKey(event, t('tool.polygon'))) return;
       const modifier = event.ctrlKey || event.metaKey;
@@ -128,7 +129,7 @@ export default function App() {
               <Typography variant="caption">
                 {projectName}{isDirty ? ' *' : ''} · {t('status.ready')}
               </Typography>
-              {previewVisible && (
+              {previewVisible && !booleanPreview && (
                 <Box className="toolpath-legend">
                   <span className="legend-line legend-contour" />{t('planning.legend.mark')}
                   <span className="legend-line legend-hatch" />{t('planning.legend.fill')}
@@ -136,7 +137,7 @@ export default function App() {
                 </Box>
               )}
               <Typography variant="caption">
-                {t(`planning.status.${planningStatus}`, { count: segmentCount })}
+                {booleanPreview ? t('boolean.title') : t(`planning.status.${planningStatus}`, { count: segmentCount })}
                 {' · '}
                 {t('status.objectCount', { count: objectCount })}
               </Typography>

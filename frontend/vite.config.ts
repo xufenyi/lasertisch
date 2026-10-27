@@ -35,6 +35,7 @@ function pythonJsonHandler(scriptName: string) {
       const script = path.join(repositoryRoot, 'backend', 'scripts', scriptName);
       const child = spawn(pythonExecutable, [script], {
         cwd: repositoryRoot,
+        env: { ...process.env, PYTHONUTF8: '1' },
         windowsHide: true,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -73,6 +74,7 @@ function pythonApplicationBridge(): Plugin {
     configureServer(server) {
       server.middlewares.use('/api/plan', pythonJsonHandler('plan_toolpaths_stdio.py'));
       server.middlewares.use('/api/export', pythonJsonHandler('export_device_stdio.py'));
+      server.middlewares.use('/api/boolean', pythonJsonHandler('boolean_geometry_stdio.py'));
     },
   };
 }

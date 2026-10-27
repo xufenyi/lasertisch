@@ -30,8 +30,11 @@ CSV 或 DBD 编码 → 原生保存对话框
 | `frontend/src/editor/CanvasSurface.tsx` | 画布交互、绘制、拖动、缩放、标尺和路径叠加 |
 | `frontend/src/domain/` | TypeScript 契约、单位转换、项目文件和响应解析 |
 | `frontend/src/planning/` | 规划请求、过期响应隔离、预览与导出状态 |
+| `frontend/src/planning/booleanClient.ts` | 布尔请求及响应校验，复用桌面和开发服务器边界 |
+| `frontend/src/components/BooleanOperationsPanel.tsx` | A/B、运算方式、预览、保留原对象及空结果确认 |
 | `backend/src/lasertisch/domain/` | Pydantic 规范模型及请求、响应模型 |
 | `backend/src/lasertisch/geometry/` | 规范模型与 Shapely 之间的转换和量化 |
+| `backend/src/lasertisch/geometry/boolean.py` | 世界坐标区域布尔、结果量化及规范多边形生成 |
 | `backend/src/lasertisch/cam/` | 轮廓方向、扫描填充和任务顺序 |
 | `backend/src/lasertisch/device/` | 路径连续性检查、运动命令和 CSV/DBD 编码 |
 | `backend/src/lasertisch/application/bridge.py` | 桌面与开发服务器共用的稳定调用边界 |
@@ -94,6 +97,24 @@ CSV 或 DBD 编码 → 原生保存对话框
 - 双击边插入离鼠标最近的边上点；面板按钮在所选顶点之后的边上插入中点。闭合边、孔洞和多个分离部分使用相同规则。插入点会量化到整数局部坐标，退化时拒绝操作。
 - Delete/Backspace 在顶点编辑模式只删除所选顶点，Esc 先退出顶点编辑并保留对象选择。输入控件仍优先处理文本编辑和 Enter 提交，不将输入中的删除按键交给画布。
 
+## 布尔运算
+
+布尔操作只接受两个不同、可见、未锁定的闭合对象（矩形、多边形或椭圆），不接受线段。请求包含完整项目快照、修订号、唯一请求标识、运算方式和有序的 A/B ID。`union`、`intersection` 和 `difference` 统一使用后端 Shapely，在 `0.001 mm` 网格上计算；减除始终为 A − B，椭圆使用当前边数生成的多边形。
+
+结果只保留有面积的 Polygon/MultiPolygon 部分。点或线接触不构成面积，因此可能返回明确的空结果。结果量化并规范排序后，将世界坐标环转换为局部整数顶点，以包围盒中心附近的整数点作为位置、旋转设为 0，并重复验证几何与工作区边界。保留孔洞和分离部分，不进行缓冲修复或擅自改变几何；如果相切环等情况违反现有多边形约束，应返回错误并保留输入。
+
+`BooleanResponse` 成功时必须为一个普通多边形或 `empty=true` 且 `result=null`，失败时必须有错误且没有结果。前端验证请求标识、修订号、成功状态和完整多边形契约，不能直接接收未校验的结果。
+
+`booleanPreview` 属于编辑器临时状态，不写入项目文件，不增加历史或文档修订号。画布将结果显示为绿色，A/B 淡化，暂时关闭整体拖动与框选；可缩放或使用中键平移。加工路径叠加暂时隐藏，原有预览开关保留。点击取消恢复原显示。
+
+面板用异步请求标识及取消令牌隔离旧响应；状态提交时再次检查修订号、当前选择、工具状态、可编辑性和未完成拖动。文档修改、选择或工具变化、临时拖动、撤销/重做、打开新项目等都使旧预览失效。
+
+应用运算是一次原子历史提交：默认删除 A/B，并在 A 的几何列表位置和固定加工顺序位置放入新结果，其他对象相对顺序不变。结果使用新 ID，名称由界面生成，完整继承 A 的加工参数。选择“保留原对象”时不更改原对象，将结果插在 A 后面；原对象仍按原参数加工，面板必须提醒可能重复加工。
+
+空结果不能创建空多边形。替换模式下，用户需勾选确认后点击应用，才会移除 A/B，并记录一次可撤销操作；保留原对象模式下的空结果没有可应用内容。只预览或取消不改变项目。
+
+`fixtures/booleans-v2.lasertisch.json` 为交互验收项目，包含重叠、孔洞、分离和椭圆四组对象；`fixtures/boolean-results.json` 供前端读取后端生成的规范结果进行契约与流程测试。
+
 ## 加工路径语义
 
 ### 顺序
@@ -134,10 +155,13 @@ CSV 使用 UTF-8 文本，表头为 `command,x,y,speed`，坐标单位为毫米�
 
 ## 应用桥接与桌面外壳
 
-应用边界暴露两个纯数据方法：
+应用边界暴露三个纯数据方法：
 
 - `plan_toolpaths`：校验项目快照并返回设备无关路径。
 - `export_device_program`：校验路径并返回 Base64 编码的 CSV 或 DBD 内容。
+- `boolean_geometry`：校验项目与操作数，返回规范多边形或明确的空结果，不修改项目。
+
+开发模式的 `/api/boolean` 通过 `boolean_geometry_stdio.py` 调用同一方法；Vite 子进程强制 UTF-8，布尔标准输入输出桥接也明确使用 UTF-8，以支持 Windows 下的中文项目名称。
 
 开发模式由 Vite 中间件启动短生命周期 Python 进程；桌面模式通过 pywebview 的 JavaScript API 调用同一应用边界。原生文件 API 负责：
 
@@ -155,6 +179,7 @@ CSV 使用 UTF-8 文本，表头为 `command,x,y,speed`，坐标单位为毫米�
 - `project-v2.schema.json`：当前项目文档；`project-v1.schema.json` 保留为旧版格式记录，不由当前模型覆盖。
 - `plan-request-v1.schema.json`、`plan-response-v1.schema.json`：路径规划。
 - `export-request-v1.schema.json`、`export-response-v1.schema.json`：设备导出。
+- `boolean-request-v1.schema.json`、`boolean-response-v1.schema.json`：布尔计算请求和结果。
 
 Python 测试覆盖数据模型、单位、几何转换、轮廓、填充、规划、桥接、桌面文件 API、设备编码和语言包。前端测试覆盖单位与几何、项目文件、工具快捷键、Fabric.js 适配、路径渲染、状态历史、规划客户端和桌面桥接。
 
