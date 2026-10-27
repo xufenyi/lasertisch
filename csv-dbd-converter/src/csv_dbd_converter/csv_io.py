@@ -1,6 +1,7 @@
 """读取和写入运动命令 CSV 文件。"""
 
 import csv
+import io
 import math
 from pathlib import Path
 from typing import Iterable, cast
@@ -95,15 +96,21 @@ def _format_decimal(value: float) -> str:
 
 def write_motion_csv(path: Path, commands: Iterable[MotionCommand]) -> None:
     """把运动命令写成带英文表头的 UTF-8 CSV 文件。"""
-    with path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.writer(stream, lineterminator="\n")
-        writer.writerow(CSV_HEADER)
-        for command in commands:
-            writer.writerow(
-                (
-                    command.kind,
-                    _format_decimal(command.x_mm),
-                    _format_decimal(command.y_mm),
-                    _format_decimal(command.speed_mm_s),
-                )
+    path.write_bytes(encode_motion_csv(commands))
+
+
+def encode_motion_csv(commands: Iterable[MotionCommand]) -> bytes:
+    """把运动命令编码为可直接保存的 UTF-8 CSV 字节。"""
+    stream = io.StringIO(newline="")
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow(CSV_HEADER)
+    for command in commands:
+        writer.writerow(
+            (
+                command.kind,
+                _format_decimal(command.x_mm),
+                _format_decimal(command.y_mm),
+                _format_decimal(command.speed_mm_s),
             )
+        )
+    return stream.getvalue().encode("utf-8")

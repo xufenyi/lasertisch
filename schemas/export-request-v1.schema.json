@@ -1,0 +1,242 @@
+{
+  "$defs": {
+    "ExportFormat": {
+      "enum": [
+        "csv",
+        "dbd"
+      ],
+      "title": "ExportFormat",
+      "type": "string"
+    },
+    "InitialJump": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "initial_jump",
+          "default": "initial_jump",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "default": null,
+          "title": "Start",
+          "type": "null"
+        },
+        "end": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "laser": {
+          "const": "off",
+          "default": "off",
+          "title": "Laser",
+          "type": "string"
+        },
+        "speedUmPerSec": {
+          "exclusiveMinimum": 0,
+          "title": "Speedumpersec",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "speedUmPerSec"
+      ],
+      "title": "InitialJump",
+      "type": "object"
+    },
+    "LaserState": {
+      "enum": [
+        "off",
+        "on"
+      ],
+      "title": "LaserState",
+      "type": "string"
+    },
+    "MotionSegment": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/SegmentKind"
+        },
+        "laser": {
+          "$ref": "#/$defs/LaserState"
+        },
+        "start": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "end": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "speedUmPerSec": {
+          "exclusiveMinimum": 0,
+          "title": "Speedumpersec",
+          "type": "integer"
+        },
+        "sourceEntityIds": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourceentityids",
+          "type": "array"
+        },
+        "taskId": {
+          "format": "uuid",
+          "title": "Taskid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sequence",
+        "kind",
+        "laser",
+        "start",
+        "end",
+        "speedUmPerSec",
+        "sourceEntityIds",
+        "taskId"
+      ],
+      "title": "MotionSegment",
+      "type": "object"
+    },
+    "PointUm": {
+      "additionalProperties": false,
+      "properties": {
+        "xUm": {
+          "title": "Xum",
+          "type": "integer"
+        },
+        "yUm": {
+          "title": "Yum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "xUm",
+        "yUm"
+      ],
+      "title": "PointUm",
+      "type": "object"
+    },
+    "SegmentKind": {
+      "enum": [
+        "travel",
+        "contour",
+        "hatch",
+        "open_line"
+      ],
+      "title": "SegmentKind",
+      "type": "string"
+    },
+    "ToolpathPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "planId": {
+          "format": "uuid",
+          "title": "Planid",
+          "type": "string"
+        },
+        "inputRevision": {
+          "minimum": 0,
+          "title": "Inputrevision",
+          "type": "integer"
+        },
+        "preamble": {
+          "items": {
+            "$ref": "#/$defs/InitialJump"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Preamble",
+          "type": "array"
+        },
+        "tasks": {
+          "items": {
+            "$ref": "#/$defs/ToolpathTask"
+          },
+          "title": "Tasks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "planId",
+        "inputRevision",
+        "preamble"
+      ],
+      "title": "ToolpathPlan",
+      "type": "object"
+    },
+    "ToolpathTask": {
+      "additionalProperties": false,
+      "properties": {
+        "taskId": {
+          "format": "uuid",
+          "title": "Taskid",
+          "type": "string"
+        },
+        "sourceEntityIds": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sourceentityids",
+          "type": "array"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/MotionSegment"
+          },
+          "title": "Segments",
+          "type": "array"
+        }
+      },
+      "required": [
+        "taskId",
+        "sourceEntityIds"
+      ],
+      "title": "ToolpathTask",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "documentRevision": {
+      "minimum": 0,
+      "title": "Documentrevision",
+      "type": "integer"
+    },
+    "format": {
+      "$ref": "#/$defs/ExportFormat"
+    },
+    "plan": {
+      "$ref": "#/$defs/ToolpathPlan"
+    }
+  },
+  "required": [
+    "requestId",
+    "documentRevision",
+    "format",
+    "plan"
+  ],
+  "title": "ExportRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/export-request-v1.schema.json"
+}

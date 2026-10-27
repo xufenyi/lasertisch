@@ -106,7 +106,7 @@ python main.py encode example.csv
 ```python
 from csv_dbd_converter.models import MotionCommand, MotionKind
 from csv_dbd_converter.dbd_codec import encode_dbd, decode_dbd
-from csv_dbd_converter.csv_io import read_motion_csv, write_motion_csv
+from csv_dbd_converter.csv_io import encode_motion_csv, read_motion_csv, write_motion_csv
 
 commands: list[MotionCommand] = [
     MotionCommand(kind="jump", x_mm=0, y_mm=0, speed_mm_s=7000),
@@ -114,6 +114,7 @@ commands: list[MotionCommand] = [
 ]
 
 data = encode_dbd(commands)
+csv_data = encode_motion_csv(commands)
 restored = decode_dbd(data)
 ```
 

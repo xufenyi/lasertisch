@@ -24,6 +24,7 @@ import {
 } from '../editor/toolShortcuts';
 import { useEditorStore } from '../state/editorStore';
 import { ProjectActions } from './ProjectActions';
+import { ExportActions } from './ExportActions';
 import { ToolpathPreviewControl } from './ToolpathPreviewControl';
 
 const toolButtonSx = {
@@ -108,6 +109,7 @@ export function EditorToolbar({ onFit }: { onFit: () => void }) {
         </Tooltip>
       </ToggleButtonGroup>
       <ToolpathPreviewControl />
+      <ExportActions />
       <span className="toolbar-spacer" />
       <FormControl size="small" sx={{ minWidth: 125 }}>
         <Select

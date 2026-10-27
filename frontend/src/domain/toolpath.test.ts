@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parsePlanResponse } from './toolpath';
+import { parseExportResponse, parsePlanResponse } from './toolpath';
 
 const response = {
   apiVersion: 1,
@@ -41,5 +41,42 @@ describe('planning response parsing', () => {
     const invalid = structuredClone(response);
     invalid.plan.tasks[0].segments[0].laser = 'on';
     expect(() => parsePlanResponse(invalid)).toThrow(/laser state/);
+  });
+});
+
+describe('device export parsing', () => {
+  it('accepts a complete successful file payload', () => {
+    const parsed = parseExportResponse({
+      apiVersion: 1,
+      requestId: 'request',
+      documentRevision: 4,
+      ok: true,
+      format: 'dbd',
+      mediaType: 'application/octet-stream',
+      filenameExtension: 'dbd',
+      contentBase64: 'QUJD',
+      commandCount: 3,
+      errors: [],
+      warnings: [],
+    });
+
+    expect(parsed.format).toBe('dbd');
+    expect(parsed.commandCount).toBe(3);
+  });
+
+  it('rejects success without file content', () => {
+    expect(() => parseExportResponse({
+      apiVersion: 1,
+      requestId: 'request',
+      documentRevision: 4,
+      ok: true,
+      format: 'csv',
+      mediaType: 'text/csv',
+      filenameExtension: 'csv',
+      contentBase64: null,
+      commandCount: 0,
+      errors: [],
+      warnings: [],
+    })).toThrow(/inconsistent/);
   });
 });

@@ -18,7 +18,7 @@ interface PlanningState {
 }
 
 export const usePlanningStore = create<PlanningState>((set) => ({
-  previewVisible: true,
+  previewVisible: false,
   status: 'idle',
   plan: null,
   planRevision: null,

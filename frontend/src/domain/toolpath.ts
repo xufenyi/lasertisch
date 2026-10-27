@@ -57,6 +57,30 @@ export interface PlanResponse {
   warnings: ApiIssue[];
 }
 
+export type ExportFormat = 'csv' | 'dbd';
+
+export interface ExportRequest {
+  apiVersion: 1;
+  requestId: string;
+  documentRevision: number;
+  format: ExportFormat;
+  plan: ToolpathPlan;
+}
+
+export interface ExportResponse {
+  apiVersion: 1;
+  requestId: string;
+  documentRevision: number;
+  ok: boolean;
+  format: ExportFormat | null;
+  mediaType: string | null;
+  filenameExtension: string | null;
+  contentBase64: string | null;
+  commandCount: number;
+  errors: ApiIssue[];
+  warnings: ApiIssue[];
+}
+
 function record(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${label} must be an object`);
@@ -189,5 +213,42 @@ export function parsePlanResponse(value: unknown): PlanResponse {
   if ((result.ok && (!result.plan || result.errors.length)) || (!result.ok && (result.plan || !result.errors.length))) {
     throw new Error('planning response success state is inconsistent');
   }
+  return result;
+}
+
+export function parseExportResponse(value: unknown): ExportResponse {
+  const source = record(value, 'response');
+  if (source.apiVersion !== 1 || typeof source.ok !== 'boolean') {
+    throw new Error('unsupported export response');
+  }
+  if (!Array.isArray(source.errors) || !Array.isArray(source.warnings)) {
+    throw new Error('response issues are invalid');
+  }
+  const format = source.format;
+  if (format !== null && format !== 'csv' && format !== 'dbd') {
+    throw new Error('response format is invalid');
+  }
+  const optionalText = (item: unknown, label: string) => (
+    item === null ? null : stringValue(item, label)
+  );
+  const result: ExportResponse = {
+    apiVersion: 1,
+    requestId: stringValue(source.requestId, 'response.requestId'),
+    documentRevision: nonNegativeInteger(source.documentRevision, 'response.documentRevision'),
+    ok: source.ok,
+    format,
+    mediaType: optionalText(source.mediaType, 'response.mediaType'),
+    filenameExtension: optionalText(source.filenameExtension, 'response.filenameExtension'),
+    contentBase64: optionalText(source.contentBase64, 'response.contentBase64'),
+    commandCount: nonNegativeInteger(source.commandCount, 'response.commandCount'),
+    errors: source.errors.map((item, index) => issue(item, `errors[${index}]`)),
+    warnings: source.warnings.map((item, index) => issue(item, `warnings[${index}]`)),
+  };
+  const hasFile = result.format !== null && result.mediaType !== null &&
+    result.filenameExtension !== null && result.contentBase64 !== null;
+  if (
+    (result.ok && (!hasFile || result.errors.length)) ||
+    (!result.ok && (hasFile || !result.errors.length))
+  ) throw new Error('export response success state is inconsistent');
   return result;
 }

@@ -1,0 +1,149 @@
+{
+  "$defs": {
+    "ApiIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ApiIssue",
+      "type": "object"
+    },
+    "ExportFormat": {
+      "enum": [
+        "csv",
+        "dbd"
+      ],
+      "title": "ExportFormat",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "documentRevision": {
+      "minimum": 0,
+      "title": "Documentrevision",
+      "type": "integer"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "format": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ExportFormat"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "mediaType": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Mediatype"
+    },
+    "filenameExtension": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Filenameextension"
+    },
+    "contentBase64": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Contentbase64"
+    },
+    "commandCount": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Commandcount",
+      "type": "integer"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requestId",
+    "documentRevision",
+    "ok"
+  ],
+  "title": "ExportResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/export-response-v1.schema.json"
+}

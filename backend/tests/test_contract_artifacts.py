@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from lasertisch.domain.bridge import PlanRequest, PlanResponse
+from lasertisch.domain.bridge import ExportRequest, ExportResponse, PlanRequest, PlanResponse
 from lasertisch.domain.common import ContractModel
 from lasertisch.domain.models import ProjectDocument, RectangleEntity
 
@@ -17,6 +17,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
         ("project-v1.schema.json", ProjectDocument),
         ("plan-request-v1.schema.json", PlanRequest),
         ("plan-response-v1.schema.json", PlanResponse),
+        ("export-request-v1.schema.json", ExportRequest),
+        ("export-response-v1.schema.json", ExportResponse),
     ],
 )
 def test_checked_in_schema_matches_authoritative_model(

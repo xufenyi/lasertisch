@@ -4,9 +4,9 @@ LaserTisch 是一个面向激光加工的轻量二维 CAD/CAM 桌面应用。项
 React、TypeScript 和 Fabric.js 提供几何编辑，使用 Python 和 Shapely 负责
 计算几何及设备无关路径规划，并通过 pywebview 组成跨平台桌面应用。
 
-当前开发进度：**阶段 4——几何与路径集成已实现，等待手动验收**。当前版本在
-阶段 3 文档编辑能力之上，自动调用 Python + Shapely 规划路径，并显示轮廓、
-填充、空行程、方向、起终点及对象加工顺序。
+当前开发进度：**阶段 6——设备协议集成已实现，等待手动验收**。当前版本会把
+经过校验的有序加工路径导出为可读 CSV 或目标设备 DBD 文件。阶段 5 已按产品
+决策暂缓；任意多边形编辑系统完成后，再实现布尔运算等高级功能。
 
 ## 已锁定的核心约束
 
@@ -24,6 +24,7 @@ React、TypeScript 和 Fabric.js 提供几何编辑，使用 Python 和 Shapely 
 项目环境位于 `.venv`，Python 版本为 3.12。无需激活即可执行：
 
 ```powershell
+.\.venv\python.exe -m pip install -e ".\csv-dbd-converter"
 .\.venv\python.exe -m pip install -e ".\backend[dev]"
 .\.venv\python.exe -m pytest .\backend\tests
 ```
@@ -34,8 +35,8 @@ React、TypeScript 和 Fabric.js 提供几何编辑，使用 Python 和 Shapely 
 .\.venv\python.exe .\backend\scripts\export_schemas.py
 ```
 
-`csv-dbd-converter` 和 `csv_dbd` 是现有设备协议参考项目及黄金样本，阶段 6
-以前保持独立，避免设备协议过早渗透到 CAM 模块。
+`csv-dbd-converter` 是设备文件编解码模块，`csv_dbd` 保存等效 CSV/DBD 黄金
+样本。设备编码只依赖设备无关的 `ToolpathPlan`，不会依赖矩形等编辑器图元。
 
 ## 启动前端编辑器
 
@@ -55,4 +56,7 @@ npm run dev
 随后打开终端显示的本机地址（通常是 `http://localhost:5173`）。
 
 开发服务器会自动使用项目 `.venv` 中的 Python 规划器，无需另开后端进程。
+
+工具栏的下载按钮提供“导出 CSV”和“导出 DBD”。导出时会使用当前文档版本的
+路径；如果预览未开启或路径尚未生成，软件会先自动规划，再开始下载。
 

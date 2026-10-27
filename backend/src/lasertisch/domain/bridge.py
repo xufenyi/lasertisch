@@ -61,6 +61,7 @@ class MotionSegment(ContractModel):
             raise ValueError("motion segment must have non-zero length")
         return self
 
+
 class ToolpathTask(ContractModel):
     task_id: UUID
     source_entity_ids: list[UUID] = Field(min_length=1)
@@ -103,5 +104,46 @@ class PlanResponse(ContractModel):
             raise ValueError("successful response requires a plan and no errors")
         if not self.ok and (self.plan is not None or not self.errors):
             raise ValueError("failed response requires errors and no plan")
+        return self
+
+
+class ExportFormat(StrEnum):
+    CSV = "csv"
+    DBD = "dbd"
+
+
+class ExportRequest(ContractModel):
+    api_version: Literal[1] = 1
+    request_id: UUID
+    document_revision: AnnotatedNonNegativeInt
+    format: ExportFormat
+    plan: ToolpathPlan
+
+
+class ExportResponse(ContractModel):
+    api_version: Literal[1] = 1
+    request_id: UUID
+    document_revision: AnnotatedNonNegativeInt
+    ok: bool
+    format: ExportFormat | None = None
+    media_type: str | None = None
+    filename_extension: str | None = None
+    content_base64: str | None = None
+    command_count: AnnotatedNonNegativeInt = 0
+    errors: list[ApiIssue] = Field(default_factory=list)
+    warnings: list[ApiIssue] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_consistent_result(self) -> "ExportResponse":
+        payload_fields = (
+            self.format,
+            self.media_type,
+            self.filename_extension,
+            self.content_base64,
+        )
+        if self.ok and (any(value is None for value in payload_fields) or self.errors):
+            raise ValueError("successful export requires file data and no errors")
+        if not self.ok and (any(value is not None for value in payload_fields) or not self.errors):
+            raise ValueError("failed export requires errors and no file data")
         return self
 

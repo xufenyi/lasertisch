@@ -46,3 +46,15 @@ def test_invalid_payload_becomes_a_structured_failure() -> None:
     assert response["requestId"] == REQUEST_ID
     assert response["documentRevision"] == 3
     assert response["errors"][0]["code"] == "contract.invalid_plan_request"
+
+
+def test_invalid_export_payload_becomes_a_structured_failure() -> None:
+    response = ApplicationApi().export_device_program({
+        "apiVersion": 1,
+        "requestId": REQUEST_ID,
+        "documentRevision": 3,
+    })
+
+    assert response["ok"] is False
+    assert response["requestId"] == REQUEST_ID
+    assert response["errors"][0]["code"] == "contract.invalid_export_request"
