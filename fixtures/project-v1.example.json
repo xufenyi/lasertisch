@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "documentId": "00000000-0000-0000-0000-000000000001",
+  "projectName": "Stage 0 example",
+  "units": "um",
+  "workArea": {
+    "widthUm": 190000,
+    "heightUm": 190000,
+    "center": {
+      "xUm": 0,
+      "yUm": 0
+    },
+    "origin": "center"
+  },
+  "grid": {
+    "visible": true,
+    "spacingUm": 5000,
+    "snapMove": true,
+    "snapResize": true
+  },
+  "defaultProcess": {
+    "mode": "contour",
+    "markSpeedUmPerSec": 900000,
+    "fillAngleTenthsDeg": 0,
+    "hatchSpacingUm": 160,
+    "contourDirection": "clockwise"
+  },
+  "globalSettings": {
+    "travelSpeedUmPerSec": 10000000,
+    "minimumMarkSegmentUm": 100,
+    "initialJumpToOrigin": true
+  },
+  "entities": [
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "Rectangle 1",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 300,
+        "hatchSpacingUm": 160,
+        "contourDirection": "clockwise"
+      },
+      "kind": "rectangle",
+      "center": {
+        "xUm": 12345,
+        "yUm": -4567
+      },
+      "widthUm": 20001,
+      "heightUm": 10000,
+      "rotationTenthsDeg": 150
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "Line 1",
+      "visible": true,
+      "locked": false,
+      "process": {
+        "mode": "contour",
+        "markSpeedUmPerSec": 500000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 160,
+        "contourDirection": "clockwise"
+      },
+      "kind": "line",
+      "start": {
+        "xUm": -10000,
+        "yUm": 0
+      },
+      "end": {
+        "xUm": 10000,
+        "yUm": 0
+      }
+    }
+  ],
+  "processingOrder": [
+    "00000000-0000-0000-0000-000000000002",
+    "00000000-0000-0000-0000-000000000003"
+  ]
+}
+

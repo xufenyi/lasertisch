@@ -1,0 +1,434 @@
+{
+  "$defs": {
+    "ContourDirection": {
+      "enum": [
+        "clockwise",
+        "counterclockwise"
+      ],
+      "title": "ContourDirection",
+      "type": "string"
+    },
+    "GlobalSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "travelSpeedUmPerSec": {
+          "default": 10000000,
+          "exclusiveMinimum": 0,
+          "title": "Travelspeedumpersec",
+          "type": "integer"
+        },
+        "minimumMarkSegmentUm": {
+          "const": 100,
+          "default": 100,
+          "title": "Minimummarksegmentum",
+          "type": "integer"
+        },
+        "initialJumpToOrigin": {
+          "const": true,
+          "default": true,
+          "title": "Initialjumptoorigin",
+          "type": "boolean"
+        }
+      },
+      "title": "GlobalSettings",
+      "type": "object"
+    },
+    "GridSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "spacingUm": {
+          "default": 5000,
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Spacingum",
+          "type": "integer"
+        },
+        "snapMove": {
+          "default": true,
+          "title": "Snapmove",
+          "type": "boolean"
+        },
+        "snapResize": {
+          "default": true,
+          "title": "Snapresize",
+          "type": "boolean"
+        }
+      },
+      "title": "GridSettings",
+      "type": "object"
+    },
+    "LineEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "end": {
+          "$ref": "#/$defs/PointUm"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "start",
+        "end"
+      ],
+      "title": "LineEntity",
+      "type": "object"
+    },
+    "PointUm": {
+      "additionalProperties": false,
+      "properties": {
+        "xUm": {
+          "title": "Xum",
+          "type": "integer"
+        },
+        "yUm": {
+          "title": "Yum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "xUm",
+        "yUm"
+      ],
+      "title": "PointUm",
+      "type": "object"
+    },
+    "PolygonEntity": {
+      "additionalProperties": false,
+      "description": "A baked boolean result with one or more disconnected polygon parts.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "polygon",
+          "default": "polygon",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/PolygonPart"
+          },
+          "minItems": 1,
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "parts"
+      ],
+      "title": "PolygonEntity",
+      "type": "object"
+    },
+    "PolygonPart": {
+      "additionalProperties": false,
+      "properties": {
+        "outerRing": {
+          "items": {
+            "$ref": "#/$defs/PointUm"
+          },
+          "minItems": 3,
+          "title": "Outerring",
+          "type": "array"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/PointUm"
+            },
+            "minItems": 3,
+            "type": "array"
+          },
+          "title": "Holes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outerRing"
+      ],
+      "title": "PolygonPart",
+      "type": "object"
+    },
+    "ProcessMode": {
+      "enum": [
+        "none",
+        "contour",
+        "fill",
+        "fill_then_contour",
+        "contour_then_fill"
+      ],
+      "title": "ProcessMode",
+      "type": "string"
+    },
+    "ProcessSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/ProcessMode",
+          "default": "contour"
+        },
+        "markSpeedUmPerSec": {
+          "default": 900000,
+          "exclusiveMinimum": 0,
+          "title": "Markspeedumpersec",
+          "type": "integer"
+        },
+        "fillAngleTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Fillangletenthsdeg",
+          "type": "integer"
+        },
+        "hatchSpacingUm": {
+          "default": 160,
+          "exclusiveMinimum": 0,
+          "title": "Hatchspacingum",
+          "type": "integer"
+        },
+        "contourDirection": {
+          "$ref": "#/$defs/ContourDirection",
+          "default": "clockwise"
+        }
+      },
+      "title": "ProcessSpec",
+      "type": "object"
+    },
+    "RectangleEntity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "rectangle",
+          "default": "rectangle",
+          "title": "Kind",
+          "type": "string"
+        },
+        "center": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "widthUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Widthum",
+          "type": "integer"
+        },
+        "heightUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Heightum",
+          "type": "integer"
+        },
+        "rotationTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Rotationtenthsdeg",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "center",
+        "widthUm",
+        "heightUm"
+      ],
+      "title": "RectangleEntity",
+      "type": "object"
+    },
+    "WorkArea": {
+      "additionalProperties": false,
+      "properties": {
+        "widthUm": {
+          "default": 190000,
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Widthum",
+          "type": "integer"
+        },
+        "heightUm": {
+          "default": 190000,
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Heightum",
+          "type": "integer"
+        },
+        "center": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "origin": {
+          "const": "center",
+          "default": "center",
+          "title": "Origin",
+          "type": "string"
+        }
+      },
+      "title": "WorkArea",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "documentId": {
+      "format": "uuid",
+      "title": "Documentid",
+      "type": "string"
+    },
+    "projectName": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Projectname",
+      "type": "string"
+    },
+    "units": {
+      "const": "um",
+      "default": "um",
+      "title": "Units",
+      "type": "string"
+    },
+    "workArea": {
+      "$ref": "#/$defs/WorkArea"
+    },
+    "grid": {
+      "$ref": "#/$defs/GridSettings"
+    },
+    "defaultProcess": {
+      "$ref": "#/$defs/ProcessSpec"
+    },
+    "globalSettings": {
+      "$ref": "#/$defs/GlobalSettings"
+    },
+    "entities": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "line": "#/$defs/LineEntity",
+            "polygon": "#/$defs/PolygonEntity",
+            "rectangle": "#/$defs/RectangleEntity"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RectangleEntity"
+          },
+          {
+            "$ref": "#/$defs/LineEntity"
+          },
+          {
+            "$ref": "#/$defs/PolygonEntity"
+          }
+        ]
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "processingOrder": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "title": "Processingorder",
+      "type": "array"
+    }
+  },
+  "required": [
+    "documentId",
+    "projectName"
+  ],
+  "title": "ProjectDocument",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/project-v1.schema.json"
+}
