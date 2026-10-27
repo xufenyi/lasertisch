@@ -127,6 +127,16 @@
     "polygon.vertexCoordinates": "局部坐标相对图形参考点，随图形一起旋转。Enter 或离开输入框提交。",
     "polygon.worldCoordinates": "世界坐标：X {{x}} mm · Y {{y}} mm",
     "polygon.insertAfter": "在所选顶点之后插入中点",
-    "polygon.deleteVertex": "删除所选顶点"
+    "polygon.deleteVertex": "删除所选顶点",
+    "tool.ellipse": "椭圆",
+    "ellipse.sides": "边数",
+    "ellipse.sideRange": "边数范围：{{min}}–{{max}}，默认 64",
+    "ellipse.precisionHint": "增加边数可提高形状的近似精度，但过多的顶点和过短的线段可能不利于激光加工。请根据尺寸和加工要求选择边数。",
+    "ellipse.dimensionsHint": "宽高表示用于生成椭圆的矩形尺寸；低边数时实际多边形包围盒可能较小。",
+    "ellipse.minimumEdge": "顶点数：{{count}} · 最短轮廓边：{{length}} mm",
+    "ellipse.shortEdges": "存在短于 0.1 mm 的轮廓边，请根据加工效果调整边数或尺寸。此提示不会删除轮廓边。",
+    "ellipse.convert": "转换为普通多边形",
+    "ellipse.convertHint": "转换后可编辑顶点，不能继续调整椭圆边数；可通过撤销恢复。",
+    "error.invalidEllipse": "请输入有效参数；图形不能越界或退化。尺寸过小时请减少边数或增大尺寸。"
   }
 }

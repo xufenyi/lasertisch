@@ -1,0 +1,66 @@
+[
+  {
+    "widthUm": 60001,
+    "heightUm": 20003,
+    "sides": 3,
+    "rotationTenthsDeg": 0,
+    "localSha256": "f3cf2cd3423c26a2aa9bcb024a9437a453bf4923a25f0a86eab0eecd460adbb8",
+    "worldSha256": "f3cf2cd3423c26a2aa9bcb024a9437a453bf4923a25f0a86eab0eecd460adbb8"
+  },
+  {
+    "widthUm": 40003,
+    "heightUm": 20001,
+    "sides": 5,
+    "rotationTenthsDeg": 137,
+    "localSha256": "2df978aec67b349e61e8201b2836566ec3a40762136de76215dac8b5f649c9d1",
+    "worldSha256": "5fcd601a550e1295644427c3edb88c7502ff01c9f42f01fb53a5f8debce90c81"
+  },
+  {
+    "widthUm": 50001,
+    "heightUm": 10003,
+    "sides": 6,
+    "rotationTenthsDeg": 900,
+    "localSha256": "f51812ce8328f6d24f1d3329bf9fb40adf2c64abcca24bfa3494fdff05bdcb80",
+    "worldSha256": "14db0154b50b0f77cf84fd3f066fd74bccb5375296ee5f6f824a0cc5990d7d0e"
+  },
+  {
+    "widthUm": 40123,
+    "heightUm": 40123,
+    "sides": 64,
+    "rotationTenthsDeg": 600,
+    "localSha256": "3500c3f17d6fe2f01c57ab0550a5a9bdc4f44b5d040c9dce98dbe9845686fd4e",
+    "worldSha256": "5c50ad649a8d1d2a4980f8eeb8ee772b93e8afe32ad11ba38e2129061cf7d1ac"
+  },
+  {
+    "widthUm": 190000,
+    "heightUm": 80001,
+    "sides": 127,
+    "rotationTenthsDeg": 3599,
+    "localSha256": "8b9a8def9332ea30b25ab8e831fe73c0a74b8656c71fc0e4cc5bcf6172d3cdc7",
+    "worldSha256": "d56717eed8cfd97d3574be471b180118e0ed33b900fa80b6e9c060eea5b7123b"
+  },
+  {
+    "widthUm": 64000,
+    "heightUm": 32000,
+    "sides": 1024,
+    "rotationTenthsDeg": 55,
+    "localSha256": "489ae5ca65506e9faa0019605d1a0cb0bf0fd95e600c021cded5b4b3a58d2e86",
+    "worldSha256": "4bbfcdff5250edebfb1d00cfb497569e741ea7f3856a94169baa0624f14e0c09"
+  },
+  {
+    "widthUm": 20001,
+    "heightUm": 10001,
+    "sides": 4,
+    "rotationTenthsDeg": 0,
+    "localSha256": "32ba30047723df52573dbedd6f495a8e9e7624347b2a5fd4750a84ac1fffff85",
+    "worldSha256": "32ba30047723df52573dbedd6f495a8e9e7624347b2a5fd4750a84ac1fffff85"
+  },
+  {
+    "widthUm": 50000,
+    "heightUm": 201,
+    "sides": 64,
+    "rotationTenthsDeg": 1350,
+    "localSha256": "1d1e64ddb6309247939ead9094d282b10e5df71d5821d2d2eac90f1697422744",
+    "worldSha256": "0fb9d252375e630410dd437c9d4e17ee4e00c0a3688b5f2c85c7b1d960d90a16"
+  }
+]

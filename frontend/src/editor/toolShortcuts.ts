@@ -6,6 +6,7 @@ export const TOOL_SHORTCUT_KEY: Record<Tool, string> = {
   line: 'L',
   rectangle: 'R',
   polygon: 'P',
+  ellipse: 'E',
 };
 
 export const FIT_WORK_AREA_SHORTCUT = 'Ctrl/⌘+0';

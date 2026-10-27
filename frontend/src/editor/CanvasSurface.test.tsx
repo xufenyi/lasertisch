@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
-import { Point, type FabricObject } from 'fabric';
+import { Path, Point, type FabricObject } from 'fabric';
 import fixture from '../../../fixtures/polygons-v2.lasertisch.json';
 import { parseProjectDocument } from '../domain/projectFiles';
 import { worldToScene } from '../domain/geometry';
 import { polygonWorldPoint } from '../domain/polygonGeometry';
-import type { PointUm, PolygonEntity } from '../domain/model';
+import type { EllipseEntity, PointUm, PolygonEntity } from '../domain/model';
+import { getEntityId } from './fabricAdapter';
 import { useEditorStore } from '../state/editorStore';
 import { handlePolygonKey } from './polygonKeyboard';
 import { CanvasSurface } from './CanvasSurface';
@@ -15,6 +16,7 @@ import { CanvasSurface } from './CanvasSurface';
 interface TestCanvas {
   fire: (name: string, event: unknown) => void;
   getActiveObject: () => FabricObject | undefined;
+  getObjects: () => FabricObject[];
 }
 const drawing = vi.hoisted(() => ({ canvas: null as TestCanvas | null }));
 vi.mock('fabric', async (importOriginal) => {
@@ -44,6 +46,44 @@ vi.mock('fabric', async (importOriginal) => {
     dispose() { return Promise.resolve(); }
   }
   return {...actual, Canvas};
+});
+
+describe('ellipse canvas interactions', () => {
+  it.each([{xUm:40_000,yUm:30_000},{xUm:-40_000,yUm:30_000},{xUm:40_000,yUm:-30_000},{xUm:-40_000,yUm:-30_000}])('draws straight-edge previews and commits a rectangle-inscribed ellipse: %j', (end) => {
+    act(() => store().setTool('ellipse'));
+    fire('mouse:down',{xUm:0,yUm:0}); fire('mouse:move',end);
+    const preview = drawing.canvas!.getObjects().find((object) => object instanceof Path && !getEntityId(object)) as Path;
+    expect(preview.path).toHaveLength(65);
+    expect(preview.path.every((command) => ['M','L','Z'].includes(command[0]))).toBe(true);
+    fire('mouse:up',end);
+    const result = store().document.entities.at(-1) as EllipseEntity;
+    expect(result).toMatchObject({kind:'ellipse',widthUm:40_000,heightUm:30_000,sides:64,
+      center:{xUm:end.xUm/2,yUm:end.yUm/2}});
+    expect(result.process).toEqual(store().document.defaultProcess);
+    expect(store().tool).toBe('select'); expect(store().undoStack).toHaveLength(1);
+    act(() => store().undo()); expect(store().document.entities).toHaveLength(4);
+  });
+  it('uses Shift to draw a circle and applies grid snapping', () => {
+    act(() => { store().updateGrid({snapMove:true,snapResize:true}); store().setTool('ellipse'); });
+    fire('mouse:down',{xUm:1000,yUm:1000});
+    fire('mouse:move',{xUm:12_345,yUm:16_345},{shiftKey:true});
+    fire('mouse:up',{xUm:12_345,yUm:16_345},{shiftKey:true});
+    expect(store().document.entities.at(-1)).toMatchObject({kind:'ellipse',widthUm:15_000,heightUm:15_000,
+      center:{xUm:7500,yUm:7500},sides:64});
+  });
+  it('cancels an unfinished ellipse when changing tools without adding history', () => {
+    act(() => store().setTool('ellipse'));
+    fire('mouse:down',{xUm:0,yUm:0}); fire('mouse:move',{xUm:20_000,yUm:10_000});
+    act(() => store().setTool('select'));
+    fire('mouse:up',{xUm:20_000,yUm:10_000});
+    expect(store().document.entities).toHaveLength(4); expect(store().undoStack).toHaveLength(0);
+  });
+  it('rejects a zero-size ellipse', () => {
+    act(() => store().setTool('ellipse'));
+    click({xUm:0,yUm:0});
+    expect(store().document.entities).toHaveLength(4); expect(store().undoStack).toHaveLength(0);
+    expect(store().status).toBe('error.invalidEllipse');
+  });
 });
 
 const store = () => useEditorStore.getState();

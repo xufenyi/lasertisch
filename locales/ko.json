@@ -127,6 +127,16 @@
     "polygon.vertexCoordinates": "로컬 좌표는 기준점에 상대적이며 도형과 함께 회전합니다. Enter 또는 포커스 이동으로 적용합니다.",
     "polygon.worldCoordinates": "월드 좌표: X {{x}} mm · Y {{y}} mm",
     "polygon.insertAfter": "선택한 꼭짓점 뒤에 중점 삽입",
-    "polygon.deleteVertex": "선택한 꼭짓점 삭제"
+    "polygon.deleteVertex": "선택한 꼭짓점 삭제",
+    "tool.ellipse": "타원",
+    "ellipse.sides": "변 수",
+    "ellipse.sideRange": "변 수: {{min}}–{{max}}, 기본값 64",
+    "ellipse.precisionHint": "변 수를 늘리면 근사 정밀도가 높아지지만 꼭짓점과 짧은 선분이 너무 많으면 레이저 가공에 불리할 수 있습니다. 크기와 가공 조건에 맞게 선택하세요.",
+    "ellipse.dimensionsHint": "너비와 높이는 타원을 생성하는 사각형의 크기입니다. 변 수가 적으면 실제 다각형 경계가 더 작을 수 있습니다.",
+    "ellipse.minimumEdge": "꼭짓점: {{count}} · 가장 짧은 윤곽 변: {{length}} mm",
+    "ellipse.shortEdges": "0.1 mm보다 짧은 윤곽 변이 있습니다. 가공 결과에 따라 변 수나 크기를 조절하세요. 이 경고는 변을 삭제하지 않습니다.",
+    "ellipse.convert": "일반 다각형으로 변환",
+    "ellipse.convertHint": "변환 후 꼭짓점을 편집할 수 있지만 타원의 변 수는 조절할 수 없습니다. 실행 취소로 복원할 수 있습니다.",
+    "error.invalidEllipse": "유효한 매개변수를 입력하세요. 도형이 퇴화하거나 작업 영역을 벗어날 수 없습니다. 크기가 작으면 변 수를 줄이거나 크기를 늘리세요."
   }
 }

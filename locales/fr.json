@@ -127,6 +127,16 @@
     "polygon.vertexCoordinates": "Les coordonnées locales sont relatives au point de référence et tournent avec la forme. Entrée ou sortie du champ pour appliquer.",
     "polygon.worldCoordinates": "Coordonnées globales : X {{x}} mm · Y {{y}} mm",
     "polygon.insertAfter": "Insérer un milieu après le sommet choisi",
-    "polygon.deleteVertex": "Supprimer le sommet choisi"
+    "polygon.deleteVertex": "Supprimer le sommet choisi",
+    "tool.ellipse": "Ellipse",
+    "ellipse.sides": "Nombre de côtés",
+    "ellipse.sideRange": "Côtés : {{min}}–{{max}}, 64 par défaut",
+    "ellipse.precisionHint": "Davantage de côtés améliore l’approximation, mais trop de sommets et de segments courts peuvent nuire au traitement laser. Adaptez le nombre à la taille et au travail.",
+    "ellipse.dimensionsHint": "Largeur et hauteur décrivent le rectangle générateur ; avec peu de côtés, les limites réelles du polygone peuvent être plus petites.",
+    "ellipse.minimumEdge": "Sommets : {{count}} · Plus petite arête : {{length}} mm",
+    "ellipse.shortEdges": "Certaines arêtes mesurent moins de 0,1 mm. Ajustez le nombre de côtés ou la taille selon le résultat. Cet avertissement ne supprime aucune arête.",
+    "ellipse.convert": "Convertir en polygone",
+    "ellipse.convertHint": "La conversion permet de modifier les sommets et retire le réglage du nombre de côtés. Annuler restaure l’ellipse.",
+    "error.invalidEllipse": "Saisissez des paramètres valides. La forme ne doit pas dégénérer ni sortir de la zone. Pour les petites tailles, réduisez les côtés ou augmentez la taille."
   }
 }

@@ -13,6 +13,7 @@ import {
 } from '../domain/units';
 import { useEditorStore } from '../state/editorStore';
 import { PolygonGeometryForm } from './PolygonGeometryForm';
+import { EllipseGeometryForm } from './EllipseGeometryForm';
 import { commitInputOnEnter } from './inputCommit';
 
 interface GeometryValues {
@@ -51,7 +52,9 @@ function valuesFor(entity: RectangleEntity | LineEntity): GeometryValues {
 export function GeometryForm({ entity }: { entity: EditableEntity }) {
   return entity.kind === 'polygon'
     ? <PolygonGeometryForm entity={entity} />
-    : <PrimitiveGeometryForm entity={entity} />;
+    : entity.kind === 'ellipse'
+      ? <EllipseGeometryForm entity={entity} />
+      : <PrimitiveGeometryForm entity={entity} />;
 }
 
 function PrimitiveGeometryForm({ entity }: { entity: RectangleEntity | LineEntity }) {

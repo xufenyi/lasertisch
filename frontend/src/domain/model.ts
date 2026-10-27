@@ -2,7 +2,7 @@ export const WORK_AREA_SIZE_UM = 190_000;
 export const BASE_PIXELS_PER_MM = 4;
 
 export type EntityId = string;
-export type Tool = 'select' | 'rectangle' | 'line' | 'polygon' | 'pan';
+export type Tool = 'select' | 'rectangle' | 'line' | 'polygon' | 'ellipse' | 'pan';
 export type ProcessMode =
   | 'none'
   | 'contour'
@@ -46,6 +46,15 @@ export interface LineEntity extends EntityBase {
   end: PointUm;
 }
 
+export interface EllipseEntity extends EntityBase {
+  kind: 'ellipse';
+  center: PointUm;
+  widthUm: number;
+  heightUm: number;
+  rotationTenthsDeg: number;
+  sides: number;
+}
+
 export interface PolygonPart {
   outerRing: PointUm[];
   holes: PointUm[][];
@@ -59,7 +68,7 @@ export interface PolygonEntity extends EntityBase {
   parts: PolygonPart[];
 }
 
-export type EditableEntity = RectangleEntity | LineEntity | PolygonEntity;
+export type EditableEntity = RectangleEntity | LineEntity | PolygonEntity | EllipseEntity;
 
 export interface GridSettings {
   visible: boolean;

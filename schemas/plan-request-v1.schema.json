@@ -8,6 +8,80 @@
       "title": "ContourDirection",
       "type": "string"
     },
+    "EllipseEntity": {
+      "additionalProperties": false,
+      "description": "A parameterized straight-edge approximation of an inscribed ellipse.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "ellipse",
+          "default": "ellipse",
+          "title": "Kind",
+          "type": "string"
+        },
+        "center": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "widthUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Widthum",
+          "type": "integer"
+        },
+        "heightUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Heightum",
+          "type": "integer"
+        },
+        "rotationTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Rotationtenthsdeg",
+          "type": "integer"
+        },
+        "sides": {
+          "default": 64,
+          "maximum": 1024,
+          "minimum": 3,
+          "title": "Sides",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "center",
+        "widthUm",
+        "heightUm"
+      ],
+      "title": "EllipseEntity",
+      "type": "object"
+    },
     "GlobalSettings": {
       "additionalProperties": false,
       "properties": {
@@ -307,6 +381,7 @@
           "items": {
             "discriminator": {
               "mapping": {
+                "ellipse": "#/$defs/EllipseEntity",
                 "line": "#/$defs/LineEntity",
                 "polygon": "#/$defs/PolygonEntity",
                 "rectangle": "#/$defs/RectangleEntity"
@@ -322,6 +397,9 @@
               },
               {
                 "$ref": "#/$defs/PolygonEntity"
+              },
+              {
+                "$ref": "#/$defs/EllipseEntity"
               }
             ]
           },

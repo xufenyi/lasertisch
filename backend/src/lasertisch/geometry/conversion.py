@@ -11,11 +11,13 @@ from shapely.errors import GEOSException
 
 from lasertisch.domain.models import (
     Entity,
+    EllipseEntity,
     LineEntity,
     PointUm,
     PolygonEntity,
     RectangleEntity,
     polygon_world_point,
+    ellipse_to_polygon,
 )
 
 from .errors import GeometryContractError
@@ -122,8 +124,10 @@ def _validate_closed_geometry(
 
 
 def closed_entity_to_geometry(
-    entity: RectangleEntity | PolygonEntity,
+    entity: RectangleEntity | PolygonEntity | EllipseEntity,
 ) -> ClosedGeometry:
+    if isinstance(entity, EllipseEntity):
+        entity = ellipse_to_polygon(entity)
     if isinstance(entity, PolygonEntity):
         _validate_closed_geometry(_polygon_entity_to_geometry(entity, local=True), entity)
     raw = (

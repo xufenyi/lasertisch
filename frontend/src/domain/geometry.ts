@@ -5,8 +5,10 @@ import {
   type RectangleEntity,
   type WorkAreaSettings,
   type EditableEntity,
+  type EllipseEntity,
 } from './model';
 import { polygonRings, polygonWorldParts } from './polygonGeometry';
+import { ellipseToPolygon } from './ellipseGeometry';
 
 export interface ScenePoint {
   x: number;
@@ -14,7 +16,7 @@ export interface ScenePoint {
 }
 
 export function constrainDrawingEnd(
-  tool: 'rectangle' | 'line',
+  tool: 'rectangle' | 'line' | 'ellipse',
   start: PointUm,
   current: PointUm,
   shift: boolean,
@@ -22,7 +24,7 @@ export function constrainDrawingEnd(
   if (!shift) return current;
   const dx = current.xUm - start.xUm;
   const dy = current.yUm - start.yUm;
-  if (tool === 'rectangle') {
+  if (tool === 'rectangle' || tool === 'ellipse') {
     const side = Math.max(Math.abs(dx), Math.abs(dy));
     return {
       xUm: start.xUm + (dx < 0 ? -side : side),
@@ -39,7 +41,7 @@ export function constrainDrawingEnd(
 }
 
 export function rectangleCenterForFixedResizeAnchor(
-  entity: RectangleEntity,
+  entity: RectangleEntity | EllipseEntity,
   widthUm: number,
   heightUm: number,
   draggedCorner: string,
@@ -197,6 +199,7 @@ export function isEntityInWorkArea(
   workArea: WorkAreaSettings,
 ): boolean {
   if (entity.kind === 'rectangle') return isRectangleInWorkArea(entity, workArea);
+  if (entity.kind === 'ellipse') return isEntityInWorkArea(ellipseToPolygon(entity), workArea);
   if (entity.kind === 'polygon') {
     return polygonRings(polygonWorldParts(entity)).every((ring) => ring.every((point) => isPointInWorkArea(point, workArea)));
   }

@@ -13,6 +13,7 @@ import {
 } from './model';
 import { normalizeTenthsDegrees } from './units';
 import { isValidPolygon, polygonBounds } from './polygonGeometry';
+import { DEFAULT_ELLIPSE_SIDES, isValidEllipse } from './ellipseGeometry';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PROCESS_MODES = new Set<ProcessMode>([
@@ -165,6 +166,18 @@ function entity(value: unknown, index: number, version: number): EditableEntity 
       throw new Error(`entities[${index}] line has zero length`);
     }
     return { ...base, kind: 'line', start, end };
+  }
+  if (source.kind === 'ellipse') {
+    if (version === 1) throw new Error('ellipse requires project version 2');
+    const ellipse: EditableEntity = {
+      ...base, kind: 'ellipse', center: point(source.center, 'ellipse.center'),
+      widthUm: positiveInteger(source.widthUm, 'ellipse.widthUm'),
+      heightUm: positiveInteger(source.heightUm, 'ellipse.heightUm'),
+      rotationTenthsDeg: normalizeTenthsDegrees(integer(source.rotationTenthsDeg ?? 0, 'ellipse.rotationTenthsDeg')),
+      sides: integer(source.sides ?? DEFAULT_ELLIPSE_SIDES, 'ellipse.sides'),
+    };
+    if (!isValidEllipse(ellipse)) throw new Error('invalid ellipse geometry');
+    return ellipse;
   }
   if (source.kind === 'polygon') {
     if (!Array.isArray(source.parts) || !source.parts.length) throw new Error('polygon parts are required');

@@ -13,6 +13,7 @@ import {
 import {
   BASE_PIXELS_PER_MM,
   type EditableEntity,
+  type EllipseEntity,
   type GridSettings,
   type LineEntity,
   type PointUm,
@@ -35,6 +36,7 @@ import {
 } from '../domain/geometry';
 import { isValidPolygon, polygonBounds, polygonRings, resizePolygon } from '../domain/polygonGeometry';
 import { normalizeTenthsDegrees } from '../domain/units';
+import { ellipseToPolygon, isValidEllipse } from '../domain/ellipseGeometry';
 
 interface EntityData {
   entityId?: string;
@@ -207,7 +209,9 @@ export function entityToFabricObject(
     ? rectangleObject(entity, workArea, zoom)
     : entity.kind === 'polygon'
       ? polygonObject(entity, workArea, zoom)
-      : lineObject(entity, workArea, zoom);
+      : entity.kind === 'ellipse'
+        ? ellipseObject(entity, workArea, zoom)
+        : lineObject(entity, workArea, zoom);
   object.visible = entity.visible;
   object.selectable = !entity.locked;
   object.evented = !entity.locked;
@@ -242,6 +246,18 @@ function polygonObject(entity: PolygonEntity, workArea: WorkAreaSettings, zoom: 
   return object;
 }
 
+function ellipseObject(entity: EllipseEntity, workArea: WorkAreaSettings, zoom: number): Path {
+  const object = polygonObject(ellipseToPolygon(entity), workArea, zoom);
+  const center = worldToScene(entity.center, workArea);
+  // The controls describe the generating rectangle even when a low side count
+  // does not place vertices at all four extrema of that rectangle.
+  object.set({ left: center.x, top: center.y, pathOffset: new Point(0, 0),
+    width: entity.widthUm * BASE_PIXELS_PER_MM / 1000,
+    height: entity.heightUm * BASE_PIXELS_PER_MM / 1000 });
+  object.setCoords();
+  return object;
+}
+
 export function updateScreenStrokeWidths(
   objects: FabricObject[],
   zoom: number,
@@ -263,13 +279,13 @@ function transformedCenter(object: FabricObject): Point {
   return util.transformPoint(new Point(0, 0), object.calcTransformMatrix());
 }
 
-function fabricRectangleToEntity(
+function fabricBoxToEntity<T extends RectangleEntity | EllipseEntity>(
   object: FabricObject,
-  entity: RectangleEntity,
+  entity: T,
   grid: GridSettings,
   workArea: WorkAreaSettings,
   options: ProjectionOptions,
-): RectangleEntity | null {
+): T | null {
   const centerScene = transformedCenter(object);
   let center = sceneToWorld(centerScene, workArea);
   if (options.snapMove ?? grid.snapMove) {
@@ -291,14 +307,14 @@ function fabricRectangleToEntity(
   if (options.resizeCorner && (options.snapResize ?? grid.snapResize)) {
     center = rectangleCenterForFixedResizeAnchor(entity, widthUm, heightUm, options.resizeCorner);
   }
-  const next: RectangleEntity = {
+  const next: T = {
     ...entity,
     center,
     widthUm,
     heightUm,
     rotationTenthsDeg: normalizeTenthsDegrees(Math.round(decomposition.angle * 10)),
   };
-  return isRectangleInWorkArea(next, workArea) ? next : null;
+  return (next.kind !== 'ellipse' || isValidEllipse(next)) && isEntityInWorkArea(next, workArea) ? next : null;
 }
 
 function fabricLineToEntity(
@@ -337,8 +353,8 @@ export function fabricObjectToEntity(
   workArea: WorkAreaSettings,
   options: ProjectionOptions = {},
 ): EditableEntity | null {
-  return entity.kind === 'rectangle'
-    ? fabricRectangleToEntity(object, entity, grid, workArea, options)
+  return entity.kind === 'rectangle' || entity.kind === 'ellipse'
+    ? fabricBoxToEntity(object, entity, grid, workArea, options)
     : entity.kind === 'polygon'
       ? fabricPolygonToEntity(object, entity, grid, workArea, options)
       : fabricLineToEntity(object, entity, grid, workArea, options);

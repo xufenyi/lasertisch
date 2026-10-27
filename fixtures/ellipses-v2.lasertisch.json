@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 2,
+  "documentId": "00000000-0000-0000-0000-000000000001",
+  "projectName": "阶段 3：椭圆验收",
+  "units": "um",
+  "workArea": {
+    "widthUm": 190000,
+    "heightUm": 190000,
+    "center": {
+      "xUm": 0,
+      "yUm": 0
+    },
+    "origin": "center"
+  },
+  "grid": {
+    "visible": true,
+    "spacingUm": 5000,
+    "snapMove": false,
+    "snapResize": false
+  },
+  "defaultProcess": {
+    "mode": "contour",
+    "markSpeedUmPerSec": 900000,
+    "fillAngleTenthsDeg": 0,
+    "hatchSpacingUm": 80,
+    "contourDirection": "clockwise"
+  },
+  "globalSettings": {
+    "travelSpeedUmPerSec": 10000000,
+    "minimumMarkSegmentUm": 100,
+    "initialJumpToOrigin": true
+  },
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000100",
+      "name": "椭圆：32 边",
+      "kind": "ellipse",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -45000,
+        "yUm": 40000
+      },
+      "widthUm": 60000,
+      "heightUm": 35000,
+      "sides": 32,
+      "rotationTenthsDeg": 150,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000101",
+      "name": "正圆：64 边",
+      "kind": "ellipse",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 45000,
+        "yUm": 40000
+      },
+      "widthUm": 40000,
+      "heightUm": 40000,
+      "sides": 64,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000102",
+      "name": "低边数：5 边",
+      "kind": "ellipse",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": -45000,
+        "yUm": -35000
+      },
+      "widthUm": 60000,
+      "heightUm": 40000,
+      "sides": 5,
+      "rotationTenthsDeg": 0,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000103",
+      "name": "高边数：256 边",
+      "kind": "ellipse",
+      "visible": true,
+      "locked": false,
+      "center": {
+        "xUm": 40000,
+        "yUm": -35000
+      },
+      "widthUm": 48000,
+      "heightUm": 40000,
+      "sides": 256,
+      "rotationTenthsDeg": 300,
+      "process": {
+        "mode": "fill_then_contour",
+        "markSpeedUmPerSec": 900000,
+        "fillAngleTenthsDeg": 0,
+        "hatchSpacingUm": 1000,
+        "contourDirection": "clockwise"
+      }
+    }
+  ],
+  "processingOrder": [
+    "00000000-0000-4000-8000-000000000100",
+    "00000000-0000-4000-8000-000000000101",
+    "00000000-0000-4000-8000-000000000102",
+    "00000000-0000-4000-8000-000000000103"
+  ]
+}

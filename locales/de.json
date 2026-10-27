@@ -127,6 +127,16 @@
     "polygon.vertexCoordinates": "Lokale Koordinaten beziehen sich auf den Bezugspunkt und drehen sich mit der Form. Enter oder Feldwechsel übernimmt.",
     "polygon.worldCoordinates": "Weltkoordinaten: X {{x}} mm · Y {{y}} mm",
     "polygon.insertAfter": "Mittelpunkt nach gewähltem Punkt einfügen",
-    "polygon.deleteVertex": "Gewählten Eckpunkt löschen"
+    "polygon.deleteVertex": "Gewählten Eckpunkt löschen",
+    "tool.ellipse": "Ellipse",
+    "ellipse.sides": "Seitenzahl",
+    "ellipse.sideRange": "Seitenzahl: {{min}}–{{max}}, Standard 64",
+    "ellipse.precisionHint": "Mehr Seiten verbessern die Annäherung. Zu viele Eckpunkte und sehr kurze Segmente können die Laserbearbeitung beeinträchtigen. Wählen Sie die Seitenzahl passend zu Größe und Aufgabe.",
+    "ellipse.dimensionsHint": "Breite und Höhe beschreiben das erzeugende Rechteck. Bei wenigen Seiten kann das Polygon kleinere Grenzen haben.",
+    "ellipse.minimumEdge": "Eckpunkte: {{count}} · Kürzeste Konturkante: {{length}} mm",
+    "ellipse.shortEdges": "Einige Konturkanten sind kürzer als 0,1 mm. Passen Sie Seitenzahl oder Größe an das Ergebnis an. Die Warnung entfernt keine Kanten.",
+    "ellipse.convert": "In Polygon umwandeln",
+    "ellipse.convertHint": "Nach der Umwandlung sind Eckpunkte editierbar, die Seitenzahl nicht mehr. Rückgängig stellt die Ellipse wieder her.",
+    "error.invalidEllipse": "Gültige Parameter eingeben. Die Form darf nicht entarten oder den Arbeitsbereich verlassen. Bei kleinen Formen Seitenzahl verringern oder Größe erhöhen."
   }
 }

@@ -21,6 +21,8 @@ from .units import normalize_tenths_degrees
 WORK_AREA_SIZE_UM = 190_000
 DEFAULT_TRAVEL_SPEED_UM_PER_SEC = 10_000_000
 MINIMUM_MARK_SEGMENT_UM = 100
+DEFAULT_ELLIPSE_SIDES = 64
+MAX_ELLIPSE_SIDES = 1024
 
 CoordinateUm = int
 AngleTenthsDeg = Annotated[int, Field(ge=0, lt=3600)]
@@ -101,6 +103,24 @@ class RectangleEntity(EntityBase):
             return normalize_tenths_degrees(value)
         return value
 
+class EllipseEntity(EntityBase):
+    """A parameterized straight-edge approximation of an inscribed ellipse."""
+
+    kind: Literal["ellipse"] = "ellipse"
+    center: PointUm
+    width_um: Annotated[int, Field(gt=0, le=WORK_AREA_SIZE_UM)]
+    height_um: Annotated[int, Field(gt=0, le=WORK_AREA_SIZE_UM)]
+    rotation_tenths_deg: AngleTenthsDeg = 0
+    sides: Annotated[int, Field(ge=3, le=MAX_ELLIPSE_SIDES, strict=True)] = DEFAULT_ELLIPSE_SIDES
+
+    @field_validator("rotation_tenths_deg", mode="before")
+    @classmethod
+    def normalize_rotation(cls, value: object) -> object:
+        if isinstance(value, int) and not isinstance(value, bool):
+            return normalize_tenths_degrees(value)
+        return value
+
+
 class LineEntity(EntityBase):
     kind: Literal["line"] = "line"
     start: PointUm
@@ -151,7 +171,7 @@ class PolygonEntity(EntityBase):
 
 
 Entity = Annotated[
-    RectangleEntity | LineEntity | PolygonEntity,
+    RectangleEntity | LineEntity | PolygonEntity | EllipseEntity,
     Field(discriminator="kind"),
 ]
 
@@ -185,6 +205,8 @@ class ProjectDocument(ContractModel):
         if not isinstance(entities, list):
             return migrated
         for index, entity in enumerate(entities):
+            if isinstance(entity, dict) and entity.get("kind") == "ellipse":
+                raise ValueError("ellipse requires project version 2")
             if isinstance(entity, dict) and entity.get("kind") == "polygon":
                 if any(key in entity for key in ("position", "rotationTenthsDeg", "rotation_tenths_deg")):
                     raise ValueError("version 1 polygon vertices must be world coordinates")
@@ -216,7 +238,7 @@ class ProjectDocument(ContractModel):
                 raise ValueError(
                     f"entity {entity.id} extends outside the configured work area"
                 )
-            if isinstance(entity, PolygonEntity):
+            if isinstance(entity, (PolygonEntity, EllipseEntity)):
                 # Import here to keep the model/conversion module boundary acyclic.
                 from lasertisch.geometry.conversion import closed_entity_to_geometry
 
@@ -263,6 +285,8 @@ def _rectangle_is_inside_work_area(
 
 
 def _entity_is_inside_work_area(entity: Entity, work_area: WorkArea) -> bool:
+    if isinstance(entity, EllipseEntity):
+        return _entity_is_inside_work_area(ellipse_to_polygon(entity), work_area)
     if isinstance(entity, RectangleEntity):
         return _rectangle_is_inside_work_area(entity, work_area)
     if isinstance(entity, LineEntity):
@@ -284,5 +308,22 @@ def polygon_world_point(entity: PolygonEntity, point: PointUm) -> PointUm:
     return PointUm(
         x_um=entity.position.x_um + math.floor(point.x_um * cosine - point.y_um * sine + 0.5),
         y_um=entity.position.y_um + math.floor(point.x_um * sine + point.y_um * cosine + 0.5),
+    )
+
+
+def ellipse_to_polygon(entity: EllipseEntity) -> PolygonEntity:
+    """Sample equal parameter angles, beginning on +X, on the local micron grid."""
+    points = []
+    for index in range(entity.sides):
+        angle = 2 * math.pi * index / entity.sides
+        points.append(PointUm(
+            x_um=math.floor(entity.width_um / 2 * math.cos(angle) + 0.5 + 1e-7),
+            y_um=math.floor(entity.height_um / 2 * math.sin(angle) + 0.5 + 1e-7),
+        ))
+    return PolygonEntity(
+        id=entity.id, name=entity.name, visible=entity.visible, locked=entity.locked,
+        process=entity.process, position=entity.center,
+        rotation_tenths_deg=entity.rotation_tenths_deg,
+        parts=[PolygonPart(outer_ring=points)],
     )
 

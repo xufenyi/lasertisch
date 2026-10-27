@@ -127,6 +127,16 @@
     "polygon.vertexCoordinates": "Local coordinates are relative to the reference point and rotate with the shape. Enter or leave the field to apply.",
     "polygon.worldCoordinates": "World coordinates: X {{x}} mm · Y {{y}} mm",
     "polygon.insertAfter": "Insert midpoint after selected vertex",
-    "polygon.deleteVertex": "Delete selected vertex"
+    "polygon.deleteVertex": "Delete selected vertex",
+    "tool.ellipse": "Ellipse",
+    "ellipse.sides": "Sides",
+    "ellipse.sideRange": "Side count: {{min}}–{{max}}, default 64",
+    "ellipse.precisionHint": "More sides improve the approximation, but excessive vertices and very short segments may be less suitable for laser processing. Choose a count appropriate to the size and job.",
+    "ellipse.dimensionsHint": "Width and height describe the generating rectangle; the actual polygon bounds may be smaller at low side counts.",
+    "ellipse.minimumEdge": "Vertices: {{count}} · Shortest contour edge: {{length}} mm",
+    "ellipse.shortEdges": "Some contour edges are shorter than 0.1 mm. Adjust the side count or size based on processing results. This warning does not remove edges.",
+    "ellipse.convert": "Convert to polygon",
+    "ellipse.convertHint": "Conversion allows vertex editing and removes ellipse side-count controls. Undo restores the ellipse.",
+    "error.invalidEllipse": "Enter valid parameters. The shape must not collapse or leave the work area. For very small sizes, reduce the side count or increase the size."
   }
 }

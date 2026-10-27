@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { isEntityInWorkArea } from '../domain/geometry';
 import { isValidPolygon } from '../domain/polygonGeometry';
+import { ellipseToPolygon, isValidEllipse } from '../domain/ellipseGeometry';
 import {
   deletePolygonVertex, insertPolygonVertex, movePolygonVertex, polygonFromPoints, polygonRing,
   reconcilePolygonEdit, type PolygonEditState, type PolygonVertexAddress,
@@ -49,6 +50,7 @@ interface EditorState {
   finishPolygon: (name?: string) => boolean;
   startPolygonEdit: (id: EntityId) => void;
   finishPolygonEdit: () => void;
+  convertEllipseToPolygon: (id: EntityId) => boolean;
   selectPolygonVertex: (vertex: PolygonVertexAddress) => void;
   moveSelectedVertex: (point: PointUm) => boolean;
   insertSelectedVertex: (point?: PointUm) => boolean;
@@ -112,6 +114,16 @@ function isValidProcess(process: ProcessSpec): boolean {
     Number.isSafeInteger(process.hatchSpacingUm) && process.hatchSpacingUm > 0;
 }
 
+function closedGeometryError(entity: EditableEntity, workArea: WorkAreaSettings): string | null {
+  if (entity.kind === 'ellipse') {
+    return isValidEllipse(entity) && isEntityInWorkArea(entity, workArea) ? null : 'error.invalidEllipse';
+  }
+  if (entity.kind === 'polygon') {
+    return isValidPolygon(entity) && isEntityInWorkArea(entity, workArea) ? null : 'error.invalidPolygon';
+  }
+  return null;
+}
+
 export function isValidEntityName(name: string): boolean {
   return name.length > 0 && name.length <= 200 && !/[<>:"/\\|?*\u0000-\u001f]/.test(name);
 }
@@ -132,24 +144,24 @@ export const useEditorStore = create<EditorState>((set) => {
     savedFingerprint: fingerprint(initialDocument),
     isDirty: false,
 
-    addEntity: (entity) => set((state) => entity.kind === 'polygon' &&
-      (!isValidPolygon(entity) || !isEntityInWorkArea(entity, state.document.workArea))
-      ? { status: 'error.invalidPolygon' } : ({
-      ...committedDocument(state, {
-        ...state.document,
-        entities: [...state.document.entities, entity],
-        processingOrder: [...state.document.processingOrder, entity.id],
-      }),
-      selectionIds: [entity.id],
-    })),
+    addEntity: (entity) => set((state) => {
+      const error = closedGeometryError(entity, state.document.workArea);
+      if (error) return { status: error };
+      return {
+        ...committedDocument(state, {
+          ...state.document,
+          entities: [...state.document.entities, entity],
+          processingOrder: [...state.document.processingOrder, entity.id],
+        }),
+        selectionIds: [entity.id],
+      };
+    }),
 
     replaceEntities: (entities) => {
       const replacements = new Map(entities.map((entity) => [entity.id, entity]));
       set((state) => {
-        if (entities.some((entity) => entity.kind === 'polygon' &&
-          (!isValidPolygon(entity) || !isEntityInWorkArea(entity, state.document.workArea)))) {
-          return { status: 'error.invalidPolygon', transientEntities: {} };
-        }
+        const error = entities.map((entity) => closedGeometryError(entity, state.document.workArea)).find(Boolean);
+        if (error) return { status: error, transientEntities: {} };
         return committedDocument(state, {
           ...state.document,
           entities: state.document.entities.map((entity) => replacements.get(entity.id) ?? entity),
@@ -230,6 +242,20 @@ export const useEditorStore = create<EditorState>((set) => {
         polygonEdit: { entityId: id, vertex: { partIndex: 0, ringIndex: 0, vertexIndex: 0 } } };
     }),
     finishPolygonEdit: () => set({ polygonEdit: null, transientEntities: {}, status: null }),
+    convertEllipseToPolygon: (id) => {
+      let accepted = false;
+      set((state) => {
+        const entity = state.document.entities.find((item) => item.id === id);
+        if (entity?.kind !== 'ellipse' || entity.locked || !entity.visible) return {};
+        const polygon = ellipseToPolygon(entity);
+        if (!isValidPolygon(polygon) || !isEntityInWorkArea(polygon, state.document.workArea)) return { status: 'error.invalidEllipse' };
+        accepted = true;
+        return { ...committedDocument(state, { ...state.document,
+          entities: state.document.entities.map((item) => item.id === id ? polygon : item) }),
+          selectionIds: [id], transientEntities: {}, polygonEdit: null };
+      });
+      return accepted;
+    },
     selectPolygonVertex: (vertex) => set((state) => {
       const entity = editedPolygon(state);
       return entity && polygonRing(entity, vertex) ? { polygonEdit: { entityId: entity.id, vertex }, status: null } : {};

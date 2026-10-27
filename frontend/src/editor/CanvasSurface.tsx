@@ -6,11 +6,12 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ActiveSelection, Canvas, FabricObject, Line, Point, Rect } from 'fabric';
+import { ActiveSelection, Canvas, FabricObject, Line, Path, Point, Rect } from 'fabric';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { movePolygonVertex, polygonWorldToLocal, type PolygonVertexAddress } from '../domain/polygonEditing';
 import { isValidPolygon } from '../domain/polygonGeometry';
+import { DEFAULT_ELLIPSE_SIDES, isValidEllipse } from '../domain/ellipseGeometry';
 
 import {
   clampPoint,
@@ -27,6 +28,7 @@ import {
   BASE_PIXELS_PER_MM,
   createEntityId,
   type EditableEntity,
+  type EllipseEntity,
   type EntityId,
   type PointUm,
   type PolygonEntity,
@@ -55,9 +57,9 @@ export interface CanvasSurfaceHandle {
 }
 
 interface DrawSession {
-  tool: 'rectangle' | 'line';
+  tool: 'rectangle' | 'line' | 'ellipse';
   start: PointUm;
-  preview: Rect | Line;
+  preview: Rect | Line | Path;
 }
 
 interface PanSession { x: number; y: number }
@@ -168,23 +170,28 @@ function pointerWorld(scenePoint: Point, snap: boolean): PointUm {
   return snap ? snapPoint(point, state.document.grid.spacingUm, state.document.workArea) : point;
 }
 
-function rectangleFromDrag(
+function boxFromDrag(
   start: PointUm,
   end: PointUm,
   sequence: number,
   workArea: WorkAreaSettings,
   defaultProcess: ProcessSpec,
+  tool: 'rectangle' | 'ellipse',
 ): EditableEntity | null {
   const widthUm = Math.abs(end.xUm - start.xUm);
   const heightUm = Math.abs(end.yUm - start.yUm);
   if (!widthUm || !heightUm) return null;
-  const entity: EditableEntity = {
+  const rectangle = {
     id: createEntityId(), kind: 'rectangle', name: `Rectangle ${sequence}`,
     visible: true, locked: false, process: { ...defaultProcess },
     center: { xUm: Math.round((start.xUm + end.xUm) / 2), yUm: Math.round((start.yUm + end.yUm) / 2) },
     widthUm, heightUm, rotationTenthsDeg: 0,
-  };
-  return isRectangleInWorkArea(entity, workArea) ? entity : null;
+  } as const;
+  if (tool === 'ellipse') {
+    const ellipse: EllipseEntity = { ...rectangle, kind: 'ellipse', name: `${i18n.t('tool.ellipse')} ${sequence}`, sides: DEFAULT_ELLIPSE_SIDES };
+    return isValidEllipse(ellipse) && isEntityInWorkArea(ellipse, workArea) ? ellipse : null;
+  }
+  return isRectangleInWorkArea(rectangle, workArea) ? rectangle : null;
 }
 
 function lineFromDrag(
@@ -213,12 +220,17 @@ function lineFromDrag(
 }
 
 function createPreview(
-  tool: 'rectangle' | 'line',
+  tool: 'rectangle' | 'line' | 'ellipse',
   start: PointUm,
   workArea: WorkAreaSettings,
   zoom: number,
-): Rect | Line {
+): Rect | Line | Path {
   const scene = worldToScene(start, workArea);
+  if (tool === 'ellipse') {
+    return new Path('', { fill: 'rgba(39, 120, 194, 0.13)', stroke: '#1666a7',
+      strokeWidth: RECTANGLE_STROKE_PX / zoom, strokeUniform: true, objectCaching: false,
+      originX: 'center', originY: 'center', selectable: false, evented: false, visible: false });
+  }
   if (tool === 'rectangle') {
     return new Rect({
       left: scene.x, top: scene.y, width: 0, height: 0,
@@ -237,10 +249,23 @@ function createPreview(
   });
 }
 
-function updatePreview(session: DrawSession, current: PointUm, workArea: WorkAreaSettings): void {
+function updatePreview(session: DrawSession, current: PointUm, workArea: WorkAreaSettings, zoom: number): void {
   const start = worldToScene(session.start, workArea);
   const end = worldToScene(current, workArea);
-  if (session.preview instanceof Rect) {
+  if (session.preview instanceof Path) {
+    const widthUm = Math.abs(current.xUm - session.start.xUm), heightUm = Math.abs(current.yUm - session.start.yUm);
+    if (!widthUm || !heightUm) { session.preview.visible = false; return; }
+    const ellipse: EllipseEntity = {
+      id: 'preview', name: 'Preview', kind: 'ellipse', visible: true, locked: false,
+      center: { xUm: Math.round((current.xUm + session.start.xUm) / 2), yUm: Math.round((current.yUm + session.start.yUm) / 2) },
+      widthUm, heightUm, rotationTenthsDeg: 0, sides: DEFAULT_ELLIPSE_SIDES,
+      process: useEditorStore.getState().document.defaultProcess,
+    };
+    const path = entityToFabricObject(ellipse, workArea, zoom) as Path;
+    session.preview.set({ path: path.path, pathOffset: path.pathOffset, left: path.left, top: path.top,
+      width: path.width, height: path.height, visible: true });
+    session.preview.dirty = true;
+  } else if (session.preview instanceof Rect) {
     session.preview.set({
       left: Math.min(start.x, end.x), top: Math.min(start.y, end.y),
       width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y),
@@ -503,7 +528,9 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
           };
       if (!projectObjects(event.target, false, options)) {
         state.clearTransientEntities();
-        state.setStatus('error.geometryOutOfBounds');
+        const includesEllipse = currentObjects(event.target).some((object) =>
+          state.document.entities.some((entity) => entity.id === getEntityId(object) && entity.kind === 'ellipse'));
+        state.setStatus(includesEllipse ? 'error.invalidEllipse' : 'error.geometryOutOfBounds');
         refresh(instance);
       }
     });
@@ -567,7 +594,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         }
         instance.requestRenderAll(); return;
       }
-      if (mouse.button !== 0 || (state.tool !== 'rectangle' && state.tool !== 'line')) return;
+      if (mouse.button !== 0 || (state.tool !== 'rectangle' && state.tool !== 'line' && state.tool !== 'ellipse')) return;
       const start = pointerWorld(event.scenePoint, state.document.grid.snapMove);
       const preview = createPreview(
         state.tool,
@@ -609,7 +636,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       const state = useEditorStore.getState();
       const raw = pointerWorld(event.scenePoint, state.document.grid.snapResize);
       const current = constrainDrawingEnd(session.tool, session.start, raw, mouse.shiftKey);
-      updatePreview(session, current, state.document.workArea);
+      updatePreview(session, current, state.document.workArea, instance.getZoom());
       instance.requestRenderAll();
     });
 
@@ -638,13 +665,14 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       instance.remove(session.preview);
       drawSessionRef.current = null;
       const sequence = state.document.entities.length + 1;
-      const entity = session.tool === 'rectangle'
-        ? rectangleFromDrag(
+      const entity = session.tool !== 'line'
+        ? boxFromDrag(
             session.start,
             current,
             sequence,
             state.document.workArea,
             state.document.defaultProcess,
+            session.tool,
           )
         : lineFromDrag(
             session.start,
@@ -656,7 +684,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       if (entity) {
         state.addEntity(entity);
         state.setTool('select');
-      } else state.setStatus('error.geometryOutOfBounds');
+      } else state.setStatus(session.tool === 'ellipse' ? 'error.invalidEllipse' : 'error.geometryOutOfBounds');
     });
 
     instance.on('mouse:dblclick', (event) => {
