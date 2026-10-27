@@ -7,6 +7,8 @@ import { PropertiesPanel } from './components/PropertiesPanel';
 import { CanvasSurface, type CanvasSurfaceHandle } from './editor/CanvasSurface';
 import { isFitWorkAreaShortcut, toolForShortcut } from './editor/toolShortcuts';
 import { useEditorStore } from './state/editorStore';
+import { usePlanningStore } from './planning/planningStore';
+import { useToolpathPlanning } from './planning/useToolpathPlanning';
 import './styles.css';
 
 const theme = createTheme({
@@ -24,6 +26,7 @@ const theme = createTheme({
 });
 
 export default function App() {
+  useToolpathPlanning();
   const { t } = useTranslation();
   const canvasRef = useRef<CanvasSurfaceHandle>(null);
   const status = useEditorStore((state) => state.status);
@@ -36,6 +39,15 @@ export default function App() {
   const redo = useEditorStore((state) => state.redo);
   const isDirty = useEditorStore((state) => state.isDirty);
   const projectName = useEditorStore((state) => state.document.projectName);
+  const planningStatus = usePlanningStore((state) => state.status);
+  const plan = usePlanningStore((state) => state.plan);
+  const planRevision = usePlanningStore((state) => state.planRevision);
+  const documentRevision = useEditorStore((state) => state.documentRevision);
+  const planningIssues = usePlanningStore((state) => state.issues);
+  const previewVisible = usePlanningStore((state) => state.previewVisible);
+  const segmentCount = planRevision === documentRevision
+    ? plan?.tasks.reduce((count, task) => count + task.segments.length, 0) ?? 0
+    : 0;
 
   useEffect(() => {
     window.document.title = `${isDirty ? '* ' : ''}${projectName} — LaserTisch`;
@@ -102,12 +114,30 @@ export default function App() {
         <Box className="app-workspace">
           <Box className="canvas-column">
             {status && <Alert className="canvas-alert" severity="warning">{t(status)}</Alert>}
+            {!status && (planningStatus === 'error' || planningStatus === 'unavailable') && (
+              <Alert className="canvas-alert" severity="warning">
+                {planningIssues[0]?.code
+                  ? t(`planning.issue.${planningIssues[0].code}`, { defaultValue: t('planning.failed') })
+                  : t('planning.failed')}
+              </Alert>
+            )}
             <CanvasSurface ref={canvasRef} />
             <Box className="status-bar">
               <Typography variant="caption">
                 {projectName}{isDirty ? ' *' : ''} · {t('status.ready')}
               </Typography>
-              <Typography variant="caption">{t('status.objectCount', { count: objectCount })}</Typography>
+              {previewVisible && (
+                <Box className="toolpath-legend">
+                  <span className="legend-line legend-contour" />{t('planning.legend.mark')}
+                  <span className="legend-line legend-hatch" />{t('planning.legend.fill')}
+                  <span className="legend-line legend-travel" />{t('planning.legend.travel')}
+                </Box>
+              )}
+              <Typography variant="caption">
+                {t(`planning.status.${planningStatus}`, { count: segmentCount })}
+                {' · '}
+                {t('status.objectCount', { count: objectCount })}
+              </Typography>
             </Box>
           </Box>
           <PropertiesPanel />

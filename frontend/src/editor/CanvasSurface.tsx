@@ -29,6 +29,7 @@ import {
   type WorkAreaSettings,
 } from '../domain/model';
 import { useEditorStore } from '../state/editorStore';
+import { usePlanningStore } from '../planning/planningStore';
 import {
   createReferenceObjects,
   entityToFabricObject,
@@ -40,6 +41,7 @@ import {
   type ProjectionOptions,
   updateScreenStrokeWidths,
 } from './fabricAdapter';
+import { drawToolpathPreview } from './toolpathRenderer';
 
 export interface CanvasSurfaceHandle {
   fitWorkArea: () => void;
@@ -306,6 +308,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const hostRef = useRef<HTMLDivElement>(null);
   const topRulerRef = useRef<HTMLCanvasElement>(null);
   const leftRulerRef = useRef<HTMLCanvasElement>(null);
+  const toolpathOverlayRef = useRef<HTMLCanvasElement>(null);
   const registryRef = useRef(new Map<EntityId, FabricObject>());
   const suppressSelectionRef = useRef(false);
   const drawSessionRef = useRef<DrawSession | null>(null);
@@ -316,6 +319,10 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const workArea = useEditorStore((state) => state.document.workArea);
   const selectionIds = useEditorStore((state) => state.selectionIds);
   const tool = useEditorStore((state) => state.tool);
+  const documentRevision = useEditorStore((state) => state.documentRevision);
+  const toolpathPlan = usePlanningStore((state) => state.plan);
+  const planRevision = usePlanningStore((state) => state.planRevision);
+  const previewVisible = usePlanningStore((state) => state.previewVisible);
 
   useImperativeHandle(ref, () => ({
     fitWorkArea: () => canvas && fitWorkArea(canvas, useEditorStore.getState().document.workArea),
@@ -338,10 +345,21 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     });
     setCanvas(instance);
 
-    const renderRulers = () => drawRulers(
-      instance, topRulerRef.current, leftRulerRef.current,
-      useEditorStore.getState().document.workArea,
-    );
+    const renderDerivedOverlays = () => {
+      const editorState = useEditorStore.getState();
+      const planningState = usePlanningStore.getState();
+      drawRulers(
+        instance, topRulerRef.current, leftRulerRef.current,
+        editorState.document.workArea,
+      );
+      drawToolpathPreview(
+        instance,
+        toolpathOverlayRef.current,
+        planningState.planRevision === editorState.documentRevision ? planningState.plan : null,
+        editorState.document.workArea,
+        planningState.previewVisible,
+      );
+    };
     const synchronizeScreenStrokes = () => {
       updateScreenStrokeWidths(
         instance.getObjects(),
@@ -349,7 +367,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       );
     };
     instance.on('before:render', synchronizeScreenStrokes);
-    instance.on('after:render', renderRulers);
+    instance.on('after:render', renderDerivedOverlays);
 
     const resize = () => {
       if (!hostRef.current) return;
@@ -546,7 +564,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     return () => {
       observer.disconnect();
       instance.off('before:render', synchronizeScreenStrokes);
-      instance.off('after:render', renderRulers);
+      instance.off('after:render', renderDerivedOverlays);
       setCanvas(null);
       void instance.dispose();
     };
@@ -588,12 +606,19 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     canvas.requestRenderAll();
   }, [canvas, tool]);
 
+  useEffect(() => {
+    if (canvas) canvas.requestRenderAll();
+  }, [canvas, documentRevision, planRevision, previewVisible, toolpathPlan]);
+
   return (
     <div className="canvas-surface">
       <div className="ruler-corner">mm</div>
       <canvas className="ruler-top" ref={topRulerRef} />
       <canvas className="ruler-left" ref={leftRulerRef} />
-      <div className="fabric-host" ref={hostRef}><canvas ref={elementRef} /></div>
+      <div className="fabric-host" ref={hostRef}>
+        <canvas ref={elementRef} />
+        <canvas className="toolpath-overlay" ref={toolpathOverlayRef} />
+      </div>
     </div>
   );
 });
