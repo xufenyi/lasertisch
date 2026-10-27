@@ -16,6 +16,7 @@
     "common.redo": "重做",
     "error.geometryOutOfBounds": "几何对象超出工作区域",
     "error.invalidProject": "项目文件无效",
+    "error.saveFailed": "文件保存失败",
     "error.pathPlanningFailed": "路径规划失败",
     "error.invalidValue": "请输入有效数值",
     "error.invalidName": "名称不能为空，且不能包含 < > : \" / \\ | ? * 等字符",

@@ -16,6 +16,7 @@
     "common.redo": "Rétablir",
     "error.geometryOutOfBounds": "La géométrie dépasse la zone de travail",
     "error.invalidProject": "Le fichier de projet n’est pas valide",
+    "error.saveFailed": "Impossible d’enregistrer le fichier",
     "error.pathPlanningFailed": "Échec de la planification de trajectoire",
     "error.invalidValue": "Saisissez une valeur valide",
     "error.invalidName": "Le nom ne peut pas être vide ni contenir < > : \" / \\ | ? *",

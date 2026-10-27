@@ -16,6 +16,7 @@
     "common.redo": "Redo",
     "error.geometryOutOfBounds": "The geometry is outside the work area",
     "error.invalidProject": "The project file is invalid",
+    "error.saveFailed": "The file could not be saved",
     "error.pathPlanningFailed": "Path planning failed",
     "error.invalidValue": "Enter a valid value",
     "error.invalidName": "The name cannot be empty or contain < > : \" / \\ | ? *",

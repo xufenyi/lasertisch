@@ -11,17 +11,6 @@ import {
   type ToolpathPlan,
 } from '../domain/toolpath';
 
-declare global {
-  interface Window {
-    pywebview?: {
-      api?: {
-        plan_toolpaths?: (request: PlanRequest) => Promise<unknown>;
-        export_device_program?: (request: ExportRequest) => Promise<unknown>;
-      };
-    };
-  }
-}
-
 export class PlanningUnavailableError extends Error {}
 export class ExportUnavailableError extends Error {}
 

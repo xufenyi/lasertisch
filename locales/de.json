@@ -16,6 +16,7 @@
     "common.redo": "Wiederholen",
     "error.geometryOutOfBounds": "Die Geometrie liegt außerhalb des Arbeitsbereichs",
     "error.invalidProject": "Die Projektdatei ist ungültig",
+    "error.saveFailed": "Die Datei konnte nicht gespeichert werden",
     "error.pathPlanningFailed": "Die Pfadplanung ist fehlgeschlagen",
     "error.invalidValue": "Gültigen Wert eingeben",
     "error.invalidName": "Der Name darf nicht leer sein oder < > : \" / \\ | ? * enthalten",

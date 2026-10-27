@@ -16,6 +16,7 @@
     "common.redo": "다시 실행",
     "error.geometryOutOfBounds": "도형이 작업 영역을 벗어났습니다",
     "error.invalidProject": "프로젝트 파일이 올바르지 않습니다",
+    "error.saveFailed": "파일을 저장할 수 없습니다",
     "error.pathPlanningFailed": "경로 계획에 실패했습니다",
     "error.invalidValue": "올바른 값을 입력하세요",
     "error.invalidName": "이름은 비워 둘 수 없으며 < > : \" / \\ | ? * 문자를 포함할 수 없습니다",

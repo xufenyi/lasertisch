@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import { projectFilename } from '../domain/projectFiles';
 import type { ExportFormat, ToolpathPlan } from '../domain/toolpath';
+import { parseNativeSaveResult } from '../desktop/desktopBridge';
 import { requestDeviceExport, requestToolpathPlan } from '../planning/planningClient';
 import { usePlanningStore } from '../planning/planningStore';
 import { useEditorStore } from '../state/editorStore';
@@ -71,11 +72,19 @@ export function ExportActions() {
       if (useEditorStore.getState().documentRevision !== revision) {
         throw new Error('Document changed while exporting');
       }
-      downloadBase64(
-        result.contentBase64,
-        result.mediaType,
-        exportFilename(document.projectName, result.filenameExtension),
-      );
+      const filename = exportFilename(document.projectName, result.filenameExtension);
+      const nativeSave = window.pywebview?.api?.save_device_file;
+      if (nativeSave) {
+        const saved = parseNativeSaveResult(await nativeSave(
+          filename,
+          result.contentBase64,
+          format,
+        ));
+        if (saved.status === 'cancelled') return;
+        if (saved.status === 'error') throw new Error(saved.code);
+      } else {
+        downloadBase64(result.contentBase64, result.mediaType, filename);
+      }
     } catch {
       setStatus('export.failed');
     } finally {

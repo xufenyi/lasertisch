@@ -17,6 +17,7 @@ import {
   projectFilename,
   serializeProjectDocument,
 } from '../domain/projectFiles';
+import { parseNativeOpenResult, parseNativeSaveResult } from '../desktop/desktopBridge';
 import { useEditorStore } from '../state/editorStore';
 
 export function ProjectActions() {
@@ -35,24 +36,54 @@ export function ProjectActions() {
 
   const mayDiscard = () => !isDirty || window.confirm(t('project.confirmDiscard'));
 
-  const save = useCallback(() => {
-    const blob = new Blob([serializeProjectDocument(document)], { type: 'application/json' });
+  const save = useCallback(async () => {
+    const content = serializeProjectDocument(document);
+    const filename = projectFilename(document.projectName);
+    const nativeSave = window.pywebview?.api?.save_project_file;
+    if (nativeSave) {
+      try {
+        const result = parseNativeSaveResult(await nativeSave(filename, content));
+        if (result.status === 'cancelled') return;
+        if (result.status === 'error') throw new Error(result.code);
+        markSaved();
+      } catch {
+        setStatus('error.saveFailed');
+      }
+      return;
+    }
+    const blob = new Blob([content], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = window.document.createElement('a');
     anchor.href = url;
-    anchor.download = projectFilename(document.projectName);
+    anchor.download = filename;
     window.document.body.append(anchor);
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     markSaved();
-  }, [document, markSaved]);
+  }, [document, markSaved, setStatus]);
+
+  const open = useCallback(async () => {
+    const nativeOpen = window.pywebview?.api?.open_project_file;
+    if (!nativeOpen) {
+      inputRef.current?.click();
+      return;
+    }
+    try {
+      const result = parseNativeOpenResult(await nativeOpen());
+      if (result.status === 'cancelled') return;
+      if (result.status === 'error') throw new Error(result.code);
+      loadDocument(parseProjectDocument(result.content));
+    } catch {
+      setStatus('error.invalidProject');
+    }
+  }, [loadDocument, setStatus]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        save();
+        void save();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -92,13 +123,13 @@ export function ProjectActions() {
         <IconButton
           size="small"
           aria-label={t('menu.open')}
-          onClick={() => { if (mayDiscard()) inputRef.current?.click(); }}
+          onClick={() => { if (mayDiscard()) void open(); }}
         >
           <FolderOpenRoundedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
       <Tooltip title={`${t('menu.save')} (Ctrl/⌘+S)`}>
-        <IconButton size="small" aria-label={t('menu.save')} onClick={save}>
+        <IconButton size="small" aria-label={t('menu.save')} onClick={() => void save()}>
           <SaveRoundedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
