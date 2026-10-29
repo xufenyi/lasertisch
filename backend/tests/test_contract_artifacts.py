@@ -6,6 +6,7 @@ import pytest
 from lasertisch.domain.bridge import BooleanRequest, BooleanResponse, ExportRequest, ExportResponse, PlanRequest, PlanResponse
 from lasertisch.domain.common import ContractModel
 from lasertisch.domain.models import ProjectDocument, RectangleEntity
+from lasertisch.domain.text import FontCatalogRequest, FontCatalogResponse, TextOutlineRequest, TextOutlineResponse, TextOutlineSnapshot
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +22,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
         ("export-response-v1.schema.json", ExportResponse),
         ("boolean-request-v1.schema.json", BooleanRequest),
         ("boolean-response-v1.schema.json", BooleanResponse),
+        ("font-catalog-request-v1.schema.json", FontCatalogRequest),
+        ("font-catalog-response-v1.schema.json", FontCatalogResponse),
+        ("text-outline-request-v1.schema.json", TextOutlineRequest),
+        ("text-outline-response-v1.schema.json", TextOutlineResponse),
+        ("text-outline-snapshot-v1.schema.json", TextOutlineSnapshot),
     ],
 )
 def test_checked_in_schema_matches_authoritative_model(

@@ -82,6 +82,73 @@
       "title": "EllipseEntity",
       "type": "object"
     },
+    "FontReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{64}:[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "faceIndex": {
+          "minimum": 0,
+          "title": "Faceindex",
+          "type": "integer"
+        },
+        "family": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "style": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Style",
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Fullname",
+          "type": "string"
+        },
+        "postscriptName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Postscriptname",
+          "type": "string"
+        },
+        "unitsPerEm": {
+          "exclusiveMinimum": 0,
+          "maximum": 65536,
+          "title": "Unitsperem",
+          "type": "integer"
+        },
+        "bundled": {
+          "title": "Bundled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "fingerprint",
+        "faceIndex",
+        "family",
+        "style",
+        "fullName",
+        "postscriptName",
+        "unitsPerEm",
+        "bundled"
+      ],
+      "title": "FontReference",
+      "type": "object"
+    },
     "GlobalSettings": {
       "additionalProperties": false,
       "properties": {
@@ -384,7 +451,8 @@
                 "ellipse": "#/$defs/EllipseEntity",
                 "line": "#/$defs/LineEntity",
                 "polygon": "#/$defs/PolygonEntity",
-                "rectangle": "#/$defs/RectangleEntity"
+                "rectangle": "#/$defs/RectangleEntity",
+                "text": "#/$defs/TextEntity"
               },
               "propertyName": "kind"
             },
@@ -400,6 +468,9 @@
               },
               {
                 "$ref": "#/$defs/EllipseEntity"
+              },
+              {
+                "$ref": "#/$defs/TextEntity"
               }
             ]
           },
@@ -486,6 +557,134 @@
         "heightUm"
       ],
       "title": "RectangleEntity",
+      "type": "object"
+    },
+    "TextEntity": {
+      "additionalProperties": false,
+      "description": "Editable source plus authoritative baked local rings; never load a font on import.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "process": {
+          "$ref": "#/$defs/ProcessSpec"
+        },
+        "kind": {
+          "const": "text",
+          "default": "text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/PointUm"
+        },
+        "rotationTenthsDeg": {
+          "default": 0,
+          "exclusiveMaximum": 3600,
+          "minimum": 0,
+          "title": "Rotationtenthsdeg",
+          "type": "integer"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/PolygonPart"
+          },
+          "minItems": 1,
+          "title": "Parts",
+          "type": "array"
+        },
+        "text": {
+          "$ref": "#/$defs/TextSource"
+        },
+        "generatorVersion": {
+          "const": "font-outline-v1",
+          "default": "font-outline-v1",
+          "title": "Generatorversion",
+          "type": "string"
+        },
+        "engineVersions": {
+          "additionalProperties": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minProperties": 1,
+          "title": "Engineversions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "parts",
+        "text",
+        "engineVersions"
+      ],
+      "title": "TextEntity",
+      "type": "object"
+    },
+    "TextSource": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "font": {
+          "$ref": "#/$defs/FontReference"
+        },
+        "fontSizeUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Fontsizeum",
+          "type": "integer"
+        },
+        "curveToleranceUm": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Curvetoleranceum",
+          "type": "integer"
+        },
+        "shortSegmentTargetUm": {
+          "default": 0,
+          "maximum": 190000,
+          "minimum": 0,
+          "title": "Shortsegmenttargetum",
+          "type": "integer"
+        },
+        "layout": {
+          "const": "single_line",
+          "default": "single_line",
+          "title": "Layout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "font",
+        "fontSizeUm",
+        "curveToleranceUm"
+      ],
+      "title": "TextSource",
       "type": "object"
     },
     "WorkArea": {

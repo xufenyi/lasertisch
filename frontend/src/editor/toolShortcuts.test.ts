@@ -8,9 +8,9 @@ import {
 
 describe('tool shortcuts', () => {
   it('maps the editor tools to their advertised single keys', () => {
-    expect(TOOL_SHORTCUT_KEY).toEqual({ select: 'V', pan: 'H', line: 'L', rectangle: 'R', polygon: 'P', ellipse: 'E' });
-    expect(['V', 'h', 'L', 'r', 'P', 'e'].map(toolForShortcut))
-      .toEqual(['select', 'pan', 'line', 'rectangle', 'polygon', 'ellipse']);
+    expect(TOOL_SHORTCUT_KEY).toEqual({ select: 'V', pan: 'H', line: 'L', rectangle: 'R', polygon: 'P', ellipse: 'E',text:'T' });
+    expect(['V', 'h', 'L', 'r', 'P', 'e','t'].map(toolForShortcut))
+      .toEqual(['select', 'pan', 'line', 'rectangle', 'polygon', 'ellipse','text']);
   });
 
   it('recognizes the Photoshop-style fit shortcut on Windows and macOS', () => {

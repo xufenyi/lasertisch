@@ -14,6 +14,7 @@ import {
 import { normalizeTenthsDegrees } from './units';
 import { isValidPolygon, polygonBounds } from './polygonGeometry';
 import { DEFAULT_ELLIPSE_SIDES, isValidEllipse } from './ellipseGeometry';
+import { parseTextSource } from './text';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PROCESS_MODES = new Set<ProcessMode>([
@@ -178,6 +179,15 @@ function entity(value: unknown, index: number, version: number): EditableEntity 
     };
     if (!isValidEllipse(ellipse)) throw new Error('invalid ellipse geometry');
     return ellipse;
+  }
+  if (source.kind === 'text') {
+    if(version===1 || source.generatorVersion!=='font-outline-v1') throw new Error('unsupported text format');
+    const polygon=entity({...source,kind:'polygon'},index,version);
+    if(polygon.kind!=='polygon') throw new Error('invalid text polygon');
+    if(polygon.parts.reduce((n,p)=>n+p.outerRing.length+p.holes.reduce((s,r)=>s+r.length,0),0)>100_000) throw new Error('text too complex');
+    const versions=record(source.engineVersions,'text.engineVersions');
+    if(!Object.keys(versions).length || Object.values(versions).some(v=>typeof v!=='string'||!v)) throw new Error('invalid text engine versions');
+    return {...polygon,kind:'text',text:parseTextSource(source.text),generatorVersion:'font-outline-v1',engineVersions:versions as Record<string,string>};
   }
   if (source.kind === 'polygon') {
     if (!Array.isArray(source.parts) || !source.parts.length) throw new Error('polygon parts are required');

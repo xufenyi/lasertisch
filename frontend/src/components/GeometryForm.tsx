@@ -15,6 +15,7 @@ import { useEditorStore } from '../state/editorStore';
 import { PolygonGeometryForm } from './PolygonGeometryForm';
 import { EllipseGeometryForm } from './EllipseGeometryForm';
 import { commitInputOnEnter } from './inputCommit';
+import { TextGeometryForm } from './TextGeometryForm';
 
 interface GeometryValues {
   x: string;
@@ -50,6 +51,7 @@ function valuesFor(entity: RectangleEntity | LineEntity): GeometryValues {
 }
 
 export function GeometryForm({ entity }: { entity: EditableEntity }) {
+  if(entity.kind==='text') return <TextGeometryForm entity={entity} />;
   return entity.kind === 'polygon'
     ? <PolygonGeometryForm entity={entity} />
     : entity.kind === 'ellipse'

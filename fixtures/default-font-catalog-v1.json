@@ -1,0 +1,21 @@
+{
+  "apiVersion": 1,
+  "requestId": "00000000-0000-0000-0000-000000000256",
+  "ok": true,
+  "defaultFontId": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b:0",
+  "fonts": [
+    {
+      "id": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b:0",
+      "fingerprint": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+      "faceIndex": 0,
+      "family": "Noto Sans CJK SC",
+      "style": "Regular",
+      "fullName": "Noto Sans CJK SC",
+      "postscriptName": "NotoSansCJKsc-Regular",
+      "unitsPerEm": 1000,
+      "bundled": true
+    }
+  ],
+  "errors": [],
+  "warnings": []
+}

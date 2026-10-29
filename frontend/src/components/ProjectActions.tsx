@@ -34,7 +34,8 @@ export function ProjectActions() {
   const redo = useEditorStore((state) => state.redo);
   const setStatus = useEditorStore((state) => state.setStatus);
 
-  const mayDiscard = () => !isDirty || window.confirm(t('project.confirmDiscard'));
+  const mayDiscard = useCallback(() => !isDirty || window.confirm(t('project.confirmDiscard')), [isDirty,t]);
+  const create = useCallback(() => { if (mayDiscard()) newProject(); }, [mayDiscard,newProject]);
 
   const save = useCallback(async () => {
     const content = serializeProjectDocument(document);
@@ -64,6 +65,7 @@ export function ProjectActions() {
   }, [document, markSaved, setStatus]);
 
   const open = useCallback(async () => {
+    if (!mayDiscard()) return;
     const nativeOpen = window.pywebview?.api?.open_project_file;
     if (!nativeOpen) {
       inputRef.current?.click();
@@ -77,18 +79,22 @@ export function ProjectActions() {
     } catch {
       setStatus('error.invalidProject');
     }
-  }, [loadDocument, setStatus]);
+  }, [loadDocument, setStatus, mayDiscard]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        void save();
-      }
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      const key=event.key.toLowerCase();
+      if (!['n','o','s'].includes(key)) return;
+      event.preventDefault();
+      if(event.repeat) return;
+      if(key==='n') create();
+      else if(key==='o') void open();
+      else void save();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [save]);
+  }, [save,create,open]);
 
   return (
     <Stack direction="row" spacing={0.25} sx={{ alignItems: 'center' }}>
@@ -110,20 +116,23 @@ export function ProjectActions() {
           });
         }}
       />
-      <Tooltip title={t('menu.new')}>
+      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+      <Tooltip title={`${t('menu.new')} (Ctrl/⌘+N)`}>
         <IconButton
           size="small"
           aria-label={t('menu.new')}
-          onClick={() => { if (mayDiscard()) newProject(); }}
+          aria-keyshortcuts="Control+N Meta+N"
+          onClick={create}
         >
           <CreateNewFolderRoundedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Tooltip title={t('menu.open')}>
+      <Tooltip title={`${t('menu.open')} (Ctrl/⌘+O)`}>
         <IconButton
           size="small"
           aria-label={t('menu.open')}
-          onClick={() => { if (mayDiscard()) void open(); }}
+          aria-keyshortcuts="Control+O Meta+O"
+          onClick={() => void open()}
         >
           <FolderOpenRoundedIcon fontSize="small" />
         </IconButton>
@@ -133,7 +142,6 @@ export function ProjectActions() {
           <SaveRoundedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
       <Tooltip title={`${t('common.undo')} (Ctrl/⌘+Z)`}>
         <span>
           <IconButton size="small" aria-label={t('common.undo')} disabled={!canUndo} onClick={undo}>
@@ -148,7 +156,6 @@ export function ProjectActions() {
           </IconButton>
         </span>
       </Tooltip>
-      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
     </Stack>
   );
 }

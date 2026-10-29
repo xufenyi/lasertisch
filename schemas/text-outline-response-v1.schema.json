@@ -1,0 +1,323 @@
+{
+  "$defs": {
+    "ApiIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ApiIssue",
+      "type": "object"
+    },
+    "FontReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{64}:[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "faceIndex": {
+          "minimum": 0,
+          "title": "Faceindex",
+          "type": "integer"
+        },
+        "family": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "style": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Style",
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Fullname",
+          "type": "string"
+        },
+        "postscriptName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Postscriptname",
+          "type": "string"
+        },
+        "unitsPerEm": {
+          "exclusiveMinimum": 0,
+          "maximum": 65536,
+          "title": "Unitsperem",
+          "type": "integer"
+        },
+        "bundled": {
+          "title": "Bundled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "fingerprint",
+        "faceIndex",
+        "family",
+        "style",
+        "fullName",
+        "postscriptName",
+        "unitsPerEm",
+        "bundled"
+      ],
+      "title": "FontReference",
+      "type": "object"
+    },
+    "PointUm": {
+      "additionalProperties": false,
+      "properties": {
+        "xUm": {
+          "title": "Xum",
+          "type": "integer"
+        },
+        "yUm": {
+          "title": "Yum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "xUm",
+        "yUm"
+      ],
+      "title": "PointUm",
+      "type": "object"
+    },
+    "PolygonPart": {
+      "additionalProperties": false,
+      "properties": {
+        "outerRing": {
+          "items": {
+            "$ref": "#/$defs/PointUm"
+          },
+          "minItems": 3,
+          "title": "Outerring",
+          "type": "array"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/PointUm"
+            },
+            "minItems": 3,
+            "type": "array"
+          },
+          "title": "Holes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outerRing"
+      ],
+      "title": "PolygonPart",
+      "type": "object"
+    },
+    "TextOutlineSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/TextSource"
+        },
+        "generatorVersion": {
+          "const": "font-outline-v1",
+          "default": "font-outline-v1",
+          "title": "Generatorversion",
+          "type": "string"
+        },
+        "engineVersions": {
+          "additionalProperties": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minProperties": 1,
+          "title": "Engineversions",
+          "type": "object"
+        },
+        "sourceHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sourcehash",
+          "type": "string"
+        },
+        "geometryHash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Geometryhash",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/PolygonPart"
+          },
+          "minItems": 1,
+          "title": "Parts",
+          "type": "array"
+        },
+        "advanceUm": {
+          "minimum": 0,
+          "title": "Advanceum",
+          "type": "integer"
+        },
+        "glyphCount": {
+          "exclusiveMinimum": 0,
+          "title": "Glyphcount",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "engineVersions",
+        "sourceHash",
+        "geometryHash",
+        "parts",
+        "advanceUm",
+        "glyphCount"
+      ],
+      "title": "TextOutlineSnapshot",
+      "type": "object"
+    },
+    "TextSource": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "font": {
+          "$ref": "#/$defs/FontReference"
+        },
+        "fontSizeUm": {
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Fontsizeum",
+          "type": "integer"
+        },
+        "curveToleranceUm": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Curvetoleranceum",
+          "type": "integer"
+        },
+        "shortSegmentTargetUm": {
+          "default": 0,
+          "maximum": 190000,
+          "minimum": 0,
+          "title": "Shortsegmenttargetum",
+          "type": "integer"
+        },
+        "layout": {
+          "const": "single_line",
+          "default": "single_line",
+          "title": "Layout",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content",
+        "font",
+        "fontSizeUm",
+        "curveToleranceUm"
+      ],
+      "title": "TextSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "documentRevision": {
+      "minimum": 0,
+      "title": "Documentrevision",
+      "type": "integer"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "snapshot": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TextOutlineSnapshot"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requestId",
+    "documentRevision",
+    "ok"
+  ],
+  "title": "TextOutlineResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/text-outline-response-v1.schema.json"
+}

@@ -5,7 +5,7 @@
 ## 技术组成
 
 - 前端：React、TypeScript、Material UI、Fabric.js、Zustand、i18next、Vite。
-- Python 核心：Pydantic、Shapely。
+- Python 核心：Pydantic、Shapely、FontTools、uharfbuzz。
 - 桌面外壳：pywebview。
 - 测试：Vitest、pytest。
 - 打包：PyInstaller。
@@ -171,6 +171,12 @@ python .\backend\scripts\export_schemas.py
 
 前端的对应 TypeScript 类型和解析器需要与 `schemas/` 中的结果保持一致。
 
+文字核心位于 `backend/src/lasertisch/text/`，字体与许可位于 `backend/src/lasertisch/assets/fonts/`。使用当前虚拟环境运行 `backend/scripts/generate_text_examples.py` 可重新生成文字多边形示例、来源快照和默认字体目录示例；此操作不会修改用户项目。默认字体指纹固定在 manifest 中，升级字体需同时更新来源、版权、许可和样例。
+
+`backend/scripts/generate_editable_text_examples.py` 生成阶段 6 的可编辑文字和模拟字体缺失项目。`domain/text_source.py` 为项目实体和生成请求共享的来源模型，避免模型间循环导入。文字编辑面板与 `editorStore` 的会话、候选轮廓配合，不能将预览写入文档或绕过修订检查。短边处理只作用于重新生成的文字轮廓，既有多边形与填充规则保持原有语义。
+
+浏览器开发模式另提供 `/api/fonts` 与 `/api/text-outline`，桌面桥接对应 `font_catalog` 和 `text_outline`。这些接口只查询或生成数据，不修改文档。系统字体目录是本机信息，项目通过字体文件 SHA-256 和集合字面索引标识字体。
+
 ## 构建发行包
 
 发行包必须在目标操作系统上构建。构建脚本会先检查并编译前端，再运行 PyInstaller，最后执行内置自检。
@@ -188,6 +194,12 @@ Anaconda 目录环境使用：
 ```
 
 产物为 `dist\LaserTisch.exe`，这是可以单独分发的单文件程序。目标电脑需要 Windows WebView2 Runtime。
+
+发行包包含默认字体、原版权及 OFL 许可；`--self-test` 同时验证默认字体能生成带孔洞的文字轮廓，不需要启动窗口。PyInstaller 收集 FontTools 动态加载的字体表模块。Python wheel 通过 package-data 包含相同字体资源。
+
+平台图标集中放在 `packaging/icons/`：Windows 使用必需的 `windows.ico`，macOS 可提供 `macos.icns`，Linux 可提供 `linux.png`。Windows 图标已从用户提供的 `scripts/icon-windows.ico` 原样移动，构建时传入 `EXE(icon=...)`；其他平台的配置与待补充文件见[图标说明](../packaging/icons/README.md)。Windows 文件浏览器可能缓存旧图标，验收请使用新生成的 EXE。
+
+字体读取在 `text/diagnostics.py` 中对 FontTools 的两个具体日志源安装过滤器，仅忽略已确认可恢复的时间戳和名称表偏移诊断，不改变全局日志级别，不隐藏其他字体错误或异常堆栈，也不修改系统字体文件。
 
 ### Ubuntu
 

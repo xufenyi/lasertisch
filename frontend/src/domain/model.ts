@@ -2,7 +2,7 @@ export const WORK_AREA_SIZE_UM = 190_000;
 export const BASE_PIXELS_PER_MM = 4;
 
 export type EntityId = string;
-export type Tool = 'select' | 'rectangle' | 'line' | 'polygon' | 'ellipse' | 'pan';
+export type Tool = 'select' | 'rectangle' | 'line' | 'polygon' | 'ellipse' | 'text' | 'pan';
 export type ProcessMode =
   | 'none'
   | 'contour'
@@ -68,7 +68,15 @@ export interface PolygonEntity extends EntityBase {
   parts: PolygonPart[];
 }
 
-export type EditableEntity = RectangleEntity | LineEntity | PolygonEntity | EllipseEntity;
+export interface TextEntity extends Omit<PolygonEntity, 'kind'> {
+  kind: 'text';
+  text: import('./text').TextSource;
+  generatorVersion: 'font-outline-v1';
+  engineVersions: Record<string,string>;
+}
+
+export type PolygonShape = PolygonEntity | TextEntity;
+export type EditableEntity = RectangleEntity | LineEntity | PolygonEntity | EllipseEntity | TextEntity;
 
 export interface GridSettings {
   visible: boolean;

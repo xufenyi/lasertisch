@@ -18,6 +18,8 @@ import {
   type LineEntity,
   type PointUm,
   type PolygonEntity,
+  type PolygonShape,
+  type TextEntity,
   type RectangleEntity,
   type WorkAreaSettings,
 } from '../domain/model';
@@ -207,7 +209,7 @@ export function entityToFabricObject(
 ): FabricObject {
   const object = entity.kind === 'rectangle'
     ? rectangleObject(entity, workArea, zoom)
-    : entity.kind === 'polygon'
+    : entity.kind === 'polygon' || entity.kind === 'text'
       ? polygonObject(entity, workArea, zoom)
       : entity.kind === 'ellipse'
         ? ellipseObject(entity, workArea, zoom)
@@ -220,7 +222,7 @@ export function entityToFabricObject(
   return object;
 }
 
-function polygonObject(entity: PolygonEntity, workArea: WorkAreaSettings, zoom: number): Path {
+function polygonObject(entity: PolygonShape, workArea: WorkAreaSettings, zoom: number): Path {
   const factor = BASE_PIXELS_PER_MM / 1000;
   const commands = polygonRings(entity.parts).map((ring) => ring.map((point, i) =>
     `${i === 0 ? 'M' : 'L'} ${point.xUm * factor} ${-point.yUm * factor}`).join(' ') + ' Z').join(' ');
@@ -241,6 +243,10 @@ function polygonObject(entity: PolygonEntity, workArea: WorkAreaSettings, zoom: 
     top: origin.y + offset.x * Math.sin(angle) + offset.y * Math.cos(angle),
   });
   setEntityId(object, entity.id);
+  if(entity.kind==='text') {
+    object.set({lockScalingX:true,lockScalingY:true});
+    object.setControlsVisibility({tl:false,tr:false,bl:false,br:false,ml:false,mr:false,mt:false,mb:false});
+  }
   (object as AnnotatedFabricObject).screenStrokeWidthPx = RECTANGLE_STROKE_PX;
   object.setCoords();
   return object;
@@ -355,9 +361,18 @@ export function fabricObjectToEntity(
 ): EditableEntity | null {
   return entity.kind === 'rectangle' || entity.kind === 'ellipse'
     ? fabricBoxToEntity(object, entity, grid, workArea, options)
+    : entity.kind === 'text'
+      ? fabricTextToEntity(object,entity,grid,workArea,options)
     : entity.kind === 'polygon'
       ? fabricPolygonToEntity(object, entity, grid, workArea, options)
       : fabricLineToEntity(object, entity, grid, workArea, options);
+}
+
+function fabricTextToEntity(object: FabricObject, entity: TextEntity, grid: GridSettings, area: WorkAreaSettings, options: ProjectionOptions): TextEntity | null {
+  const d=util.qrDecompose(object.calcTransformMatrix());
+  if(Math.abs(d.scaleX-1)>1e-6 || Math.abs(d.scaleY-1)>1e-6 || Math.abs(d.skewX)>1e-6) return null;
+  const polygon=fabricPolygonToEntity(object,{...entity,kind:'polygon'},grid,area,{...options,snapResize:false});
+  return polygon ? {...entity,position:polygon.position,rotationTenthsDeg:polygon.rotationTenthsDeg} : null;
 }
 
 function fabricPolygonToEntity(

@@ -1,0 +1,85 @@
+{
+  "$defs": {
+    "TextParameters": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "fontId": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}:[0-9]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fontid"
+        },
+        "fontSizeUm": {
+          "default": 10000,
+          "exclusiveMinimum": 0,
+          "maximum": 190000,
+          "title": "Fontsizeum",
+          "type": "integer"
+        },
+        "curveToleranceUm": {
+          "default": 5,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Curvetoleranceum",
+          "type": "integer"
+        },
+        "shortSegmentTargetUm": {
+          "default": 0,
+          "maximum": 190000,
+          "minimum": 0,
+          "title": "Shortsegmenttargetum",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "title": "TextParameters",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "documentRevision": {
+      "minimum": 0,
+      "title": "Documentrevision",
+      "type": "integer"
+    },
+    "parameters": {
+      "$ref": "#/$defs/TextParameters"
+    }
+  },
+  "required": [
+    "requestId",
+    "documentRevision",
+    "parameters"
+  ],
+  "title": "TextOutlineRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/text-outline-request-v1.schema.json"
+}

@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "ApiIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[a-z][a-z0-9_.-]*$",
+          "title": "Code",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "title": "ApiIssue",
+      "type": "object"
+    },
+    "FontReference": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{64}:[0-9]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "faceIndex": {
+          "minimum": 0,
+          "title": "Faceindex",
+          "type": "integer"
+        },
+        "family": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Family",
+          "type": "string"
+        },
+        "style": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Style",
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Fullname",
+          "type": "string"
+        },
+        "postscriptName": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Postscriptname",
+          "type": "string"
+        },
+        "unitsPerEm": {
+          "exclusiveMinimum": 0,
+          "maximum": 65536,
+          "title": "Unitsperem",
+          "type": "integer"
+        },
+        "bundled": {
+          "title": "Bundled",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "fingerprint",
+        "faceIndex",
+        "family",
+        "style",
+        "fullName",
+        "postscriptName",
+        "unitsPerEm",
+        "bundled"
+      ],
+      "title": "FontReference",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "defaultFontId": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}:[0-9]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Defaultfontid"
+    },
+    "fonts": {
+      "items": {
+        "$ref": "#/$defs/FontReference"
+      },
+      "title": "Fonts",
+      "type": "array"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/ApiIssue"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requestId",
+    "ok"
+  ],
+  "title": "FontCatalogResponse",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/font-catalog-response-v1.schema.json"
+}

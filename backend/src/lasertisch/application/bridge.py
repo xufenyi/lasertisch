@@ -175,6 +175,14 @@ class ApplicationApi:
     def boolean_geometry(self, request: object) -> dict[str, Any]:
         return boolean_geometry_payload(request)
 
+    def font_catalog(self, request: object) -> dict[str, Any]:
+        from .text_api import font_catalog_payload
+        return font_catalog_payload(request)
+
+    def text_outline(self, request: object) -> dict[str, Any]:
+        from .text_api import text_outline_payload
+        return text_outline_payload(request)
+
 
 def boolean_geometry_payload(payload: object) -> dict[str, Any]:
     try:

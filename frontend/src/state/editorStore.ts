@@ -10,6 +10,7 @@ import {
 } from '../domain/polygonEditing';
 import {
   createEmptyDocument,
+  createEntityId,
   type EditableEntity,
   type EditorDocument,
   type EntityId,
@@ -18,12 +19,14 @@ import {
   type ProcessSpec,
   type PointUm,
   type PolygonEntity,
+  type TextEntity,
   type Tool,
   type WorkAreaSettings,
   WORK_AREA_SIZE_UM,
 } from '../domain/model';
 
 const HISTORY_LIMIT = 100;
+export interface TextSession { id: string; entityId: string | null; position: PointUm; revision: number }
 
 interface EditorState {
   document: EditorDocument;
@@ -33,6 +36,13 @@ interface EditorState {
   polygonDraft: PointUm[];
   polygonEdit: PolygonEditState | null;
   booleanPreview: BooleanPreview | null;
+  textSession: TextSession | null;
+  textPreview: TextEntity | null;
+  beginText: (position: PointUm, entityId?: string) => void;
+  cancelText: () => void;
+  setTextPreview: (entity: TextEntity | null, sessionId: string) => boolean;
+  applyTextPreview: (sessionId: string) => boolean;
+  convertTextToPolygon: (id: EntityId) => void;
   tool: Tool;
   status: string | null;
   undoStack: EditorDocument[];
@@ -93,6 +103,7 @@ function committedDocument(state: EditorState, document: EditorDocument) {
     transientEntities: {},
     polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
     booleanPreview: null,
+    textSession: null, textPreview: null,
     isDirty: fingerprint(document) !== state.savedFingerprint,
     status: null,
   };
@@ -124,7 +135,7 @@ function closedGeometryError(entity: EditableEntity, workArea: WorkAreaSettings)
   if (entity.kind === 'ellipse') {
     return isValidEllipse(entity) && isEntityInWorkArea(entity, workArea) ? null : 'error.invalidEllipse';
   }
-  if (entity.kind === 'polygon') {
+  if (entity.kind === 'polygon' || entity.kind === 'text') {
     return isValidPolygon(entity) && isEntityInWorkArea(entity, workArea) ? null : 'error.invalidPolygon';
   }
   return null;
@@ -155,12 +166,52 @@ export const useEditorStore = create<EditorState>((set) => {
     polygonDraft: [],
     polygonEdit: null,
     booleanPreview: null,
+    textSession: null, textPreview: null,
     tool: 'select',
     status: null,
     undoStack: [],
     redoStack: [],
     savedFingerprint: fingerprint(initialDocument),
     isDirty: false,
+
+    beginText: (position, entityId) => set((state) => {
+      const entity=entityId ? state.document.entities.find(e=>e.id===entityId) : null;
+      if(entityId && (entity?.kind!=='text' || entity.locked || !entity.visible)) return {};
+      return {textSession:{id:createEntityId(),entityId:entityId ?? null,position:{...position},revision:state.documentRevision},
+        textPreview:null,tool:'select',selectionIds:entityId ? [entityId] : [],booleanPreview:null,polygonEdit:null,polygonDraft:[],transientEntities:{},status:null};
+    }),
+    cancelText: () => set({textSession:null,textPreview:null}),
+    setTextPreview: (entity,sessionId) => {
+      let accepted=false;
+      set(state=>{
+        if(state.textSession?.id!==sessionId || state.textSession.revision!==state.documentRevision) return {};
+        if(entity && (closedGeometryError(entity,state.document.workArea) ||
+          (state.textSession.entityId ? entity.id!==state.textSession.entityId : state.document.entities.some(e=>e.id===entity.id)))) return {};
+        accepted=true; return {textPreview:entity};
+      });return accepted;
+    },
+    applyTextPreview: (sessionId) => {
+      let accepted=false;
+      set(state=>{
+        const session=state.textSession, candidate=state.textPreview;
+        if(!session || session.id!==sessionId || session.revision!==state.documentRevision || !candidate || closedGeometryError(candidate,state.document.workArea)) return {};
+        const previous=state.document.entities.find(e=>e.id===session.entityId);
+        if(session.entityId && (previous?.kind!=='text' || previous.locked || !previous.visible)) return {};
+        const entity=previous ? {...candidate,name:previous.name,process:{...previous.process}} : candidate;
+        accepted=true;
+        return {...committedDocument(state,{...state.document,
+          entities:previous ? state.document.entities.map(e=>e.id===entity.id ? entity : e) : [...state.document.entities,entity],
+          processingOrder:previous ? state.document.processingOrder : [...state.document.processingOrder,entity.id]}),
+          selectionIds:[entity.id],textSession:null,textPreview:null};
+      });return accepted;
+    },
+    convertTextToPolygon: (id) => set(state=>{
+      const entity=state.document.entities.find(e=>e.id===id);
+      if(entity?.kind!=='text' || entity.locked || !entity.visible) return {};
+      const polygon: PolygonEntity={id:entity.id,name:entity.name,kind:'polygon',visible:entity.visible,locked:entity.locked,
+        process:{...entity.process},position:{...entity.position},rotationTenthsDeg:entity.rotationTenthsDeg,parts:structuredClone(entity.parts)};
+      return committedDocument(state,{...state.document,entities:state.document.entities.map(e=>e.id===id ? polygon : e)});
+    }),
 
     addEntity: (entity) => set((state) => {
       const error = closedGeometryError(entity, state.document.workArea);
@@ -207,7 +258,7 @@ export const useEditorStore = create<EditorState>((set) => {
     clearTransientEntities: () => set({ transientEntities: {} }),
 
     deleteSelected: () => set((state) => {
-      if (state.polygonEdit || state.tool === 'polygon') return {};
+      if (state.polygonEdit || state.tool === 'polygon' || state.textSession) return {};
       if (!state.selectionIds.length) return {};
       const deleted = new Set(state.selectionIds);
       return {
@@ -223,7 +274,7 @@ export const useEditorStore = create<EditorState>((set) => {
     setSelection: (ids) => set((state) => sameIds(state.selectionIds, ids)
       ? state
       : { selectionIds: ids, transientEntities: {}, booleanPreview: null, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
-    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, booleanPreview: null, transientEntities: {} }),
+    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, booleanPreview: null, transientEntities: {}, textSession:null,textPreview:null }),
 
     appendPolygonPoint: (point) => {
       let accepted = false;
@@ -457,7 +508,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
-        booleanPreview: null,
+        booleanPreview: null, textSession:null, textPreview:null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -475,7 +526,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: state.selectionIds.filter((id) => document.entities.some((entity) => entity.id === id)),
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
-        booleanPreview: null,
+        booleanPreview: null, textSession:null, textPreview:null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -489,7 +540,7 @@ export const useEditorStore = create<EditorState>((set) => {
         selectionIds: [],
         transientEntities: {},
         polygonDraft: [], polygonEdit: null,
-        booleanPreview: null,
+        booleanPreview: null, textSession:null, textPreview:null,
         tool: 'select',
         undoStack: [],
         redoStack: [],
@@ -505,7 +556,7 @@ export const useEditorStore = create<EditorState>((set) => {
       selectionIds: [],
       transientEntities: {},
       polygonDraft: [], polygonEdit: null,
-      booleanPreview: null,
+      booleanPreview: null, textSession:null, textPreview:null,
       tool: 'select',
       undoStack: [],
       redoStack: [],

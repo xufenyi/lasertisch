@@ -1,0 +1,33 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": 1,
+      "default": 1,
+      "title": "Apiversion",
+      "type": "integer"
+    },
+    "requestId": {
+      "format": "uuid",
+      "title": "Requestid",
+      "type": "string"
+    },
+    "includeSystem": {
+      "default": true,
+      "title": "Includesystem",
+      "type": "boolean"
+    },
+    "refresh": {
+      "default": false,
+      "title": "Refresh",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "requestId"
+  ],
+  "title": "FontCatalogRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lasertisch.local/schemas/font-catalog-request-v1.schema.json"
+}

@@ -4,6 +4,7 @@ import type {
   PlanRequest,
 } from '../domain/toolpath';
 import type { BooleanRequest } from '../domain/boolean';
+import type { FontCatalogRequest, TextOutlineRequest } from '../domain/text';
 
 export type NativeSaveResult =
   | { status: 'ok'; filename: string }
@@ -21,6 +22,8 @@ declare global {
       api?: {
         plan_toolpaths?: (request: PlanRequest) => Promise<unknown>;
         boolean_geometry?: (request: BooleanRequest) => Promise<unknown>;
+        font_catalog?: (request: FontCatalogRequest) => Promise<unknown>;
+        text_outline?: (request: TextOutlineRequest) => Promise<unknown>;
         export_device_program?: (request: ExportRequest) => Promise<unknown>;
         open_project_file?: () => Promise<unknown>;
         save_project_file?: (filename: string, content: string) => Promise<unknown>;

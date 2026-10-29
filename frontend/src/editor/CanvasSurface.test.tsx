@@ -11,6 +11,8 @@ import { useEditorStore } from '../state/editorStore';
 import { handlePolygonKey } from './polygonKeyboard';
 import { CanvasSurface } from './CanvasSurface';
 import { booleanDocument, booleanFixture } from '../test/booleanFixtures';
+import editableText from '../../../fixtures/editable-text-v2.lasertisch.json';
+import type { TextEntity } from '../domain/model';
 
 // The real component's event handlers run against a small rendering surface double.
 // Native browser drawing and pointer capture remain part of the manual acceptance.
@@ -102,6 +104,27 @@ describe('boolean canvas preview', () => {
     expect(drawing.canvas!.getObjects().some((object) => getEntityId(object)===p.result!.id)).toBe(false);
     const restored=drawing.canvas!.getObjects().find((object) => getEntityId(object)===p.operandAId)!;
     expect(restored.opacity).toBe(1);expect(restored.evented).toBe(true);
+  });
+});
+
+describe('text placement and preview',()=>{
+  it('opens the text panel at the clicked baseline without creating an entity',()=>{
+    act(()=>store().setTool('text'));click({xUm:-30000,yUm:10000});
+    expect(store().textSession?.position).toEqual({xUm:-30000,yUm:10000});
+    expect(store().document.entities).toHaveLength(4);expect(store().undoStack).toHaveLength(0);
+    expect(store().tool).toBe('select');
+  });
+  it('shows the proposed text separately and keeps the source faded until cancel',()=>{
+    act(()=>store().loadDocument(parseProjectDocument(JSON.stringify(editableText))));
+    const original=store().document.entities[0] as TextEntity;
+    act(()=>store().beginText(original.position,original.id));const session=store().textSession!;
+    act(()=>{expect(store().setTextPreview(original,session.id)).toBe(true);});
+    const objects=drawing.canvas!.getObjects().filter(o=>getEntityId(o)===original.id);
+    expect(objects).toHaveLength(2);expect(objects[0].opacity).toBe(.2);expect(objects[1].stroke).toBe('#2e7d32');
+    expect(objects[1].evented).toBe(false);expect(drawing.canvas!.getActiveObject()).toBeUndefined();
+    act(()=>store().cancelText());
+    expect(drawing.canvas!.getObjects().filter(o=>getEntityId(o)===original.id)).toHaveLength(1);
+    expect(store().undoStack).toHaveLength(0);
   });
 });
 

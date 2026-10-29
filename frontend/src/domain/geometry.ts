@@ -200,7 +200,7 @@ export function isEntityInWorkArea(
 ): boolean {
   if (entity.kind === 'rectangle') return isRectangleInWorkArea(entity, workArea);
   if (entity.kind === 'ellipse') return isEntityInWorkArea(ellipseToPolygon(entity), workArea);
-  if (entity.kind === 'polygon') {
+  if (entity.kind === 'polygon' || entity.kind === 'text') {
     return polygonRings(polygonWorldParts(entity)).every((ring) => ring.every((point) => isPointInWorkArea(point, workArea)));
   }
   return isPointInWorkArea(entity.start, workArea) && isPointInWorkArea(entity.end, workArea);

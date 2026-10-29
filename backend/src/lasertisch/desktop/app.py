@@ -69,6 +69,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         find_web_entry()
         encode_dbd([MotionCommand("jump", 0.0, 0.0, 10_000.0)])
+        from lasertisch.domain.text import TextParameters
+        from lasertisch.text.outlines import generate_text_outline
+        snapshot,_=generate_text_outline(TextParameters(content="B8中文",short_segment_target_um=100))
+        from lasertisch.domain.models import TextEntity
+        TextEntity(id="00000000-0000-0000-0000-000000000001",name="Text self-test",text=snapshot.source,
+                   parts=snapshot.parts,engine_versions=snapshot.engine_versions)
         return 0
 
     import webview

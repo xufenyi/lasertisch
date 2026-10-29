@@ -8,7 +8,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 
-function pythonJsonHandler(scriptName: string) {
+function pythonJsonHandler(scriptName: string, arguments_: string[] = []) {
   return (request: IncomingMessage, response: ServerResponse, next: () => void) => {
     if (request.method !== 'POST') {
       next();
@@ -33,7 +33,7 @@ function pythonJsonHandler(scriptName: string) {
       const pythonExecutable = process.env.LASERTISCH_PYTHON ??
         pythonCandidates.find((candidate) => existsSync(candidate)) ?? pythonCandidates[0];
       const script = path.join(repositoryRoot, 'backend', 'scripts', scriptName);
-      const child = spawn(pythonExecutable, [script], {
+      const child = spawn(pythonExecutable, [script, ...arguments_], {
         cwd: repositoryRoot,
         env: { ...process.env, PYTHONUTF8: '1' },
         windowsHide: true,
@@ -75,6 +75,8 @@ function pythonApplicationBridge(): Plugin {
       server.middlewares.use('/api/plan', pythonJsonHandler('plan_toolpaths_stdio.py'));
       server.middlewares.use('/api/export', pythonJsonHandler('export_device_stdio.py'));
       server.middlewares.use('/api/boolean', pythonJsonHandler('boolean_geometry_stdio.py'));
+      server.middlewares.use('/api/fonts', pythonJsonHandler('text_stdio.py', ['fonts']));
+      server.middlewares.use('/api/text-outline', pythonJsonHandler('text_stdio.py'));
     },
   };
 }

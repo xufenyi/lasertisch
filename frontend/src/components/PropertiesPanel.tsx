@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TextEditorPanel } from './TextEditorPanel';
 import {
   Box,
   Button,
@@ -268,6 +269,7 @@ export function PropertiesPanel() {
   const transientEntities = useEditorStore((state) => state.transientEntities);
   const selectionIds = useEditorStore((state) => state.selectionIds);
   const polygonEdit = useEditorStore((state) => state.polygonEdit);
+  const textSession = useEditorStore((state)=>state.textSession);
   const setSelection = useEditorStore((state) => state.setSelection);
   const updateGrid = useEditorStore((state) => state.updateGrid);
   const deleteSelected = useEditorStore((state) => state.deleteSelected);
@@ -282,6 +284,7 @@ export function PropertiesPanel() {
     .map((id) => byId.get(id))
     .filter((entity): entity is EditableEntity => Boolean(entity));
 
+  if(textSession) return <Box className="properties-panel"><TextEditorPanel key={textSession.id} session={textSession} /></Box>;
   return (
     <Box className="properties-panel">
       <Typography variant="overline" color="text.secondary">

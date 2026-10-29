@@ -11,6 +11,7 @@ import {
 import CropSquareRoundedIcon from '@mui/icons-material/CropSquareRounded';
 import PolylineRoundedIcon from '@mui/icons-material/PolylineRounded';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
+import TextFieldsRoundedIcon from '@mui/icons-material/TextFieldsRounded';
 import FitScreenRoundedIcon from '@mui/icons-material/FitScreenRounded';
 import HorizontalRuleRoundedIcon from '@mui/icons-material/HorizontalRuleRounded';
 import NearMeOutlinedIcon from '@mui/icons-material/NearMeOutlined';
@@ -109,17 +110,21 @@ export function EditorToolbar({ onFit }: { onFit: () => void }) {
             <CropSquareRoundedIcon />
           </ToggleButton>
         </Tooltip>
+        <Tooltip title={`${t('tool.ellipse')} (${TOOL_SHORTCUT_KEY.ellipse})`}>
+          <ToggleButton value="ellipse" aria-label={t('tool.ellipse')}
+            aria-keyshortcuts={TOOL_SHORTCUT_KEY.ellipse} onClick={() => setTool('ellipse')} sx={toolButtonSx}>
+            <CircleOutlinedIcon sx={{ transform: 'scaleX(1.2) scaleY(0.85)' }} />
+          </ToggleButton>
+        </Tooltip>
         <Tooltip title={`${t('tool.polygon')} (${TOOL_SHORTCUT_KEY.polygon})`}>
           <ToggleButton value="polygon" aria-label={t('tool.polygon')}
             aria-keyshortcuts={TOOL_SHORTCUT_KEY.polygon} onClick={() => setTool('polygon')} sx={toolButtonSx}>
             <PolylineRoundedIcon />
           </ToggleButton>
         </Tooltip>
-        <Tooltip title={`${t('tool.ellipse')} (${TOOL_SHORTCUT_KEY.ellipse})`}>
-          <ToggleButton value="ellipse" aria-label={t('tool.ellipse')}
-            aria-keyshortcuts={TOOL_SHORTCUT_KEY.ellipse} onClick={() => setTool('ellipse')} sx={toolButtonSx}>
-            <CircleOutlinedIcon sx={{ transform: 'scaleX(1.2) scaleY(0.85)' }} />
-          </ToggleButton>
+        <Tooltip title={`${t('tool.text')} (${TOOL_SHORTCUT_KEY.text})`}>
+          <ToggleButton value="text" aria-label={t('tool.text')} aria-keyshortcuts={TOOL_SHORTCUT_KEY.text}
+            onClick={()=>setTool('text')} sx={toolButtonSx}><TextFieldsRoundedIcon /></ToggleButton>
         </Tooltip>
       </ToggleButtonGroup>
       <ToolpathPreviewControl />

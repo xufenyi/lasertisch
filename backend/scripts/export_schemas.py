@@ -8,6 +8,7 @@ from pathlib import Path
 from lasertisch.domain.bridge import BooleanRequest, BooleanResponse, ExportRequest, ExportResponse, PlanRequest, PlanResponse
 from lasertisch.domain.common import ContractModel
 from lasertisch.domain.models import ProjectDocument
+from lasertisch.domain.text import FontCatalogRequest, FontCatalogResponse, TextOutlineRequest, TextOutlineResponse, TextOutlineSnapshot
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +37,11 @@ def main() -> None:
     write_schema("export-response-v1.schema.json", ExportResponse)
     write_schema("boolean-request-v1.schema.json", BooleanRequest)
     write_schema("boolean-response-v1.schema.json", BooleanResponse)
+    write_schema("font-catalog-request-v1.schema.json", FontCatalogRequest)
+    write_schema("font-catalog-response-v1.schema.json", FontCatalogResponse)
+    write_schema("text-outline-request-v1.schema.json", TextOutlineRequest)
+    write_schema("text-outline-response-v1.schema.json", TextOutlineResponse)
+    write_schema("text-outline-snapshot-v1.schema.json", TextOutlineSnapshot)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
-import type { PointUm, PolygonEntity, PolygonPart } from './model';
+import type { PointUm, PolygonEntity, PolygonPart, PolygonShape } from './model';
 
 export function polygonRings(parts: PolygonPart[]): PointUm[][] {
   return parts.flatMap((part) => [part.outerRing, ...part.holes]);
 }
 
-export function polygonBounds(entity: PolygonEntity) {
+export function polygonBounds(entity: PolygonShape) {
   const points = entity.parts.flatMap((part) => part.outerRing);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const point of points) {
@@ -15,7 +15,7 @@ export function polygonBounds(entity: PolygonEntity) {
 }
 
 /** Clockwise angles in a world with positive Y pointing upwards. */
-export function polygonWorldPoint(entity: PolygonEntity, point: PointUm): PointUm {
+export function polygonWorldPoint(entity: PolygonShape, point: PointUm): PointUm {
   const angle = -entity.rotationTenthsDeg * Math.PI / 1800;
   return {
     xUm: entity.position.xUm + Math.round(point.xUm * Math.cos(angle) - point.yUm * Math.sin(angle)),
@@ -23,7 +23,7 @@ export function polygonWorldPoint(entity: PolygonEntity, point: PointUm): PointU
   };
 }
 
-export function polygonWorldParts(entity: PolygonEntity): PolygonPart[] {
+export function polygonWorldParts(entity: PolygonShape): PolygonPart[] {
   return entity.parts.map((part) => ({
     outerRing: part.outerRing.map((point) => polygonWorldPoint(entity, point)),
     holes: part.holes.map((ring) => ring.map((point) => polygonWorldPoint(entity, point))),
@@ -130,6 +130,13 @@ function insidePart(point: PointUm, part: PolygonPart): boolean {
 
 function partsValid(parts: PolygonPart[]): boolean {
   if (!parts.length || !polygonRings(parts).every(validRing)) return false;
+  // Text may contain hundreds of disconnected glyphs. Avoid comparing every
+  // vertex pair of glyphs whose outer bounding boxes are strictly disjoint.
+  const boxes=parts.map(part=>{
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of part.outerRing){minX=Math.min(minX,p.xUm);maxX=Math.max(maxX,p.xUm);minY=Math.min(minY,p.yUm);maxY=Math.max(maxY,p.yUm);}
+    return {minX,minY,maxX,maxY};
+  });
   for (const part of parts) {
     for (let i = 0; i < part.holes.length; i++) {
       const hole = part.holes[i];
@@ -141,7 +148,9 @@ function partsValid(parts: PolygonPart[]): boolean {
     }
   }
   for (let i = 0; i < parts.length; i++) {
-    for (const other of parts.slice(i + 1)) {
+    for (let j=i+1;j<parts.length;j++) {
+      const other=parts[j],aBox=boxes[i],bBox=boxes[j];
+      if(aBox.maxX<bBox.minX || bBox.maxX<aBox.minX || aBox.maxY<bBox.minY || bBox.maxY<aBox.minY)continue;
       const part = parts[i];
       for (const a of [part.outerRing, ...part.holes]) {
         for (const b of [other.outerRing, ...other.holes]) {
@@ -160,13 +169,13 @@ function partsValid(parts: PolygonPart[]): boolean {
   return true;
 }
 
-export function isValidPolygon(entity: PolygonEntity): boolean {
+export function isValidPolygon(entity: PolygonShape): boolean {
   return Number.isSafeInteger(entity.position.xUm) && Number.isSafeInteger(entity.position.yUm) &&
     Number.isSafeInteger(entity.rotationTenthsDeg) && entity.rotationTenthsDeg >= 0 &&
     entity.rotationTenthsDeg < 3600 && partsValid(entity.parts) && partsValid(polygonWorldParts(entity));
 }
 
-export function polygonStatistics(entity: PolygonEntity) {
+export function polygonStatistics(entity: PolygonShape) {
   const parts = polygonWorldParts(entity);
   const rings = polygonRings(parts);
   const areaUm2 = parts.reduce((sum, part) => sum + Math.abs(signedArea(part.outerRing)) -

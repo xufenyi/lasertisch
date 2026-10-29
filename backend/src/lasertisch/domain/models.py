@@ -16,6 +16,7 @@ from pydantic import Field, PositiveInt, field_validator, model_validator
 
 from .common import ContractModel
 from .units import normalize_tenths_degrees
+from .text_source import TextSource, MAX_TEXT_VERTICES
 
 
 WORK_AREA_SIZE_UM = 190_000
@@ -170,8 +171,22 @@ class PolygonEntity(EntityBase):
         return value
 
 
+class TextEntity(PolygonEntity):
+    """Editable source plus authoritative baked local rings; never load a font on import."""
+    kind: Literal["text"] = "text"
+    text: TextSource
+    generator_version: Literal["font-outline-v1"] = "font-outline-v1"
+    engine_versions: dict[str, Annotated[str, Field(min_length=1)]] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_text_budget(self) -> "TextEntity":
+        if sum(len(ring) for part in self.parts for ring in (part.outer_ring, *part.holes)) > MAX_TEXT_VERTICES:
+            raise ValueError("text outline exceeds the vertex budget")
+        return self
+
+
 Entity = Annotated[
-    RectangleEntity | LineEntity | PolygonEntity | EllipseEntity,
+    RectangleEntity | LineEntity | PolygonEntity | EllipseEntity | TextEntity,
     Field(discriminator="kind"),
 ]
 
@@ -205,8 +220,8 @@ class ProjectDocument(ContractModel):
         if not isinstance(entities, list):
             return migrated
         for index, entity in enumerate(entities):
-            if isinstance(entity, dict) and entity.get("kind") == "ellipse":
-                raise ValueError("ellipse requires project version 2")
+            if isinstance(entity, dict) and entity.get("kind") in {"ellipse", "text"}:
+                raise ValueError("ellipse and text require project version 2")
             if isinstance(entity, dict) and entity.get("kind") == "polygon":
                 if any(key in entity for key in ("position", "rotationTenthsDeg", "rotation_tenths_deg")):
                     raise ValueError("version 1 polygon vertices must be world coordinates")

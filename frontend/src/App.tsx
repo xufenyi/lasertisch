@@ -10,6 +10,7 @@ import { handlePolygonKey } from './editor/polygonKeyboard';
 import { useEditorStore } from './state/editorStore';
 import { usePlanningStore } from './planning/planningStore';
 import { useToolpathPlanning } from './planning/useToolpathPlanning';
+import { useStartupFontCatalog } from './planning/useStartupFontCatalog';
 import './styles.css';
 
 const theme = createTheme({
@@ -28,6 +29,7 @@ const theme = createTheme({
 
 export default function App() {
   useToolpathPlanning();
+  useStartupFontCatalog();
   const { t } = useTranslation();
   const canvasRef = useRef<CanvasSurfaceHandle>(null);
   const status = useEditorStore((state) => state.status);

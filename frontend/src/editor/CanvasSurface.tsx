@@ -12,6 +12,7 @@ import i18n from '../i18n';
 import { movePolygonVertex, polygonWorldToLocal, type PolygonVertexAddress } from '../domain/polygonEditing';
 import { isValidPolygon } from '../domain/polygonGeometry';
 import { DEFAULT_ELLIPSE_SIDES, isValidEllipse } from '../domain/ellipseGeometry';
+import { shortEdgeStatistics } from '../domain/textGeometry';
 
 import {
   clampPoint,
@@ -142,7 +143,7 @@ function rebuildCanvas(
   registry: Map<EntityId, FabricObject>,
   suppressSelection: React.MutableRefObject<boolean>,
 ): void {
-  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview } = useEditorStore.getState();
+  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview, textSession, textPreview } = useEditorStore.getState();
   const preview = booleanPreview?.documentRevision === documentRevision ? booleanPreview : null;
   const viewport = [...canvas.viewportTransform] as [number, number, number, number, number, number];
   suppressSelection.current = true;
@@ -156,16 +157,21 @@ function rebuildCanvas(
     const displayed = polygonEdit ? transientEntities[entity.id] ?? entity : entity;
     const object = entityToFabricObject(displayed, document.workArea, zoom);
     if (preview && (entity.id === preview.operandAId || entity.id === preview.operandBId)) object.opacity = 0.25;
+    if(textPreview && entity.id===textSession?.entityId) object.opacity=0.2;
     registry.set(entity.id, object);
     canvas.add(object);
+  }
+  if(textPreview) {
+    const object=entityToFabricObject(textPreview,document.workArea,zoom);
+    object.set({fill:'rgba(46,125,50,0.22)',stroke:'#2e7d32',selectable:false,evented:false});canvas.add(object);
   }
   if (preview?.result) {
     const result = entityToFabricObject(preview.result, document.workArea, zoom);
     result.set({ fill: 'rgba(46, 125, 50, 0.25)', stroke: '#2e7d32', selectable: false, evented: false, excludeFromExport: true });
     canvas.add(result);
   }
-  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview));
-  canvas.selection = tool === 'select' && !polygonEdit && !preview;
+  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview || textSession));
+  canvas.selection = tool === 'select' && !polygonEdit && !preview && !textSession;
   if (canvas.selection) applySelection(canvas, registry, selectionIds);
   else canvas.discardActiveObject();
   suppressSelection.current = false;
@@ -376,6 +382,8 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const polygonDraft = useEditorStore((state) => state.polygonDraft);
   const polygonEdit = useEditorStore((state) => state.polygonEdit);
   const booleanPreview = useEditorStore((state) => state.booleanPreview);
+  const textSession = useEditorStore((state)=>state.textSession);
+  const textPreview = useEditorStore((state)=>state.textPreview);
   const documentRevision = useEditorStore((state) => state.documentRevision);
   const toolpathPlan = usePlanningStore((state) => state.plan);
   const planRevision = usePlanningStore((state) => state.planRevision);
@@ -414,13 +422,26 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         toolpathOverlayRef.current,
         planningState.planRevision === editorState.documentRevision ? planningState.plan : null,
         editorState.document.workArea,
-        planningState.previewVisible && !editorState.booleanPreview,
+        planningState.previewVisible && !editorState.booleanPreview && !editorState.textSession,
       );
       const edit = editorState.polygonEdit;
       const entity = edit ? editorState.transientEntities[edit.entityId] ?? editorState.document.entities.find((item) => item.id === edit.entityId) : null;
       drawPolygonOverlay(instance, polygonOverlayRef.current, editorState.document.workArea,
         editorState.polygonDraft, polygonCursorRef.current, entity?.kind === 'polygon' ? entity : null,
         edit?.vertex ?? null, vertexDragRef.current?.invalidPoint ?? null);
+      const selectedText=editorState.textPreview ?? (!editorState.textSession && editorState.selectionIds.length===1
+        ? editorState.transientEntities[editorState.selectionIds[0]] ?? editorState.document.entities.find(e=>e.id===editorState.selectionIds[0]) : null);
+      if(selectedText && selectedText.kind==='text' && polygonOverlayRef.current) {
+        const ctx=polygonOverlayRef.current.getContext('2d');
+        if(ctx) {
+          ctx.save();ctx.strokeStyle='#d32f2f';ctx.lineWidth=3;ctx.lineCap='round';
+          for(const {a,b} of shortEdgeStatistics(selectedText,selectedText.text.shortSegmentTargetUm).shortEdges) {
+            const from=worldToScene(a,editorState.document.workArea),to=worldToScene(b,editorState.document.workArea),v=instance.viewportTransform;
+            ctx.beginPath();ctx.moveTo(from.x*v[0]+from.y*v[2]+v[4],from.x*v[1]+from.y*v[3]+v[5]);
+            ctx.lineTo(to.x*v[0]+to.y*v[2]+v[4],to.x*v[1]+to.y*v[3]+v[5]);ctx.stroke();
+          }ctx.restore();
+        }
+      }
     };
     const synchronizeScreenStrokes = () => {
       updateScreenStrokeWidths(
@@ -444,7 +465,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     resize();
 
     const syncSelection = (target: FabricObject | undefined) => {
-      if (useEditorStore.getState().polygonEdit || useEditorStore.getState().booleanPreview) return;
+      if (useEditorStore.getState().polygonEdit || useEditorStore.getState().booleanPreview || useEditorStore.getState().textSession) return;
       if (!suppressSelectionRef.current) useEditorStore.getState().setSelection(selectedIds(target));
     };
     instance.on('selection:created', () => syncSelection(instance.getActiveObject()));
@@ -581,6 +602,10 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         return;
       }
       if (mouse.button !== 0) return;
+      if(state.textSession) return;
+      if(state.tool==='text') {
+        state.beginText(pointerWorld(event.scenePoint,state.document.grid.snapMove));return;
+      }
       if (state.tool === 'polygon') {
         if (isNearPolygonStart(state.polygonDraft, event.scenePoint, instance.getZoom(), state.document.workArea)) {
           state.finishPolygon(i18n.t('tool.polygon'));
@@ -719,7 +744,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     };
   }, [refresh]);
 
-  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, grid, refresh]);
+  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, grid, textPreview, textSession, refresh]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -729,7 +754,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
 
   useEffect(() => {
     const state = useEditorStore.getState();
-    if (!canvas || state.polygonEdit || state.booleanPreview || state.tool !== 'select') return;
+    if (!canvas || state.polygonEdit || state.booleanPreview || state.textSession || state.tool !== 'select') return;
     // Fabric selects on pointer-down and starts its transform immediately. Reapplying
     // the same selection here would replace that active object and cancel the drag.
     if (sameSelection(selectedIds(canvas.getActiveObject()), selectionIds)) return;
@@ -747,13 +772,13 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       canvas.remove(drawSessionRef.current.preview); drawSessionRef.current = null;
     }
     refresh(canvas);
-    const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview;
+    const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview && !state.textSession;
     canvas.selection = selecting;
-    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview));
+    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview || state.textSession));
     canvas.defaultCursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
     if (selecting) {
       applySelection(canvas, registryRef.current, state.selectionIds);
-    } else if (!state.polygonEdit && !state.booleanPreview) {
+    } else if (!state.polygonEdit && !state.booleanPreview && !state.textSession) {
       suppressSelectionRef.current = true;
       canvas.discardActiveObject();
       suppressSelectionRef.current = false;
@@ -784,8 +809,8 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         <canvas ref={elementRef} />
         <canvas className="toolpath-overlay" ref={toolpathOverlayRef} />
         <canvas className="polygon-overlay" ref={polygonOverlayRef} />
-        {(tool === 'polygon' || polygonEdit || booleanPreview) && <div className="polygon-hint">
-          {booleanPreview ? t('boolean.previewHint') : tool === 'polygon'
+        {(tool === 'text' || textSession || tool === 'polygon' || polygonEdit || booleanPreview) && <div className="polygon-hint">
+          {textSession ? t('text.previewHint') : tool==='text' ? t('text.placeHint') : booleanPreview ? t('boolean.previewHint') : tool === 'polygon'
             ? t('polygon.drawHint', { count: polygonDraft.length }) : t('polygon.editHint')}
         </div>}
       </div>
