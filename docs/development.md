@@ -1,238 +1,79 @@
-# 开发、调试与打包
-
-本文面向维护 LaserTisch 的开发者和自动化编码助手。开始修改前，请先阅读[架构与数据约束](architecture.md)。
-
-## 技术组成
-
-- 前端：React、TypeScript、Material UI、Fabric.js、Zustand、i18next、Vite。
-- Python 核心：Pydantic、Shapely、FontTools、uharfbuzz。
-- 桌面外壳：pywebview。
-- 测试：Vitest、pytest。
-- 打包：PyInstaller。
-
-## 目录结构
-
-```text
-LaserTisch/
-├─ backend/
-│  ├─ scripts/                 # 标准输入输出桥接、桌面启动、契约导出
-│  ├─ src/lasertisch/
-│  │  ├─ application/         # 前端可调用的应用边界
-│  │  ├─ cam/                 # 轮廓、扫描填充和有序路径规划
-│  │  ├─ desktop/             # pywebview 窗口与原生文件对话框
-│  │  ├─ device/              # CSV、DBD 指令映射与编码
-│  │  ├─ domain/              # 规范项目、请求、响应和路径模型
-│  │  └─ geometry/            # Shapely 转换与精度处理
-│  └─ tests/                  # Python 单元测试和契约测试
-├─ frontend/
-│  ├─ src/
-│  │  ├─ components/          # 工具栏、属性面板和文件操作
-│  │  ├─ desktop/             # 桌面桥接结果解析
-│  │  ├─ domain/              # TypeScript 项目模型和格式校验
-│  │  ├─ editor/              # Fabric.js 画布、交互和渲染
-│  │  ├─ i18n/                # 语言包加载
-│  │  ├─ planning/            # 路径规划、导出客户端与状态
-│  │  └─ state/               # 编辑器文档、历史记录和选择状态
-│  ├─ package.json
-│  └─ vite.config.ts
-├─ fixtures/                  # 项目文件示例
-├─ locales/                   # 可用文本编辑器修改的 JSON 语言包
-├─ packaging/                 # PyInstaller 打包定义
-├─ schemas/                   # 前后端共享的 JSON Schema
-└─ scripts/                   # 桌面发行包构建入口
-```
-
-## 准备开发环境
-
-需要 Python 3.12、Node.js 和 npm；当前验证组合为 Python 3.12、Node.js 24、npm 11。依赖锁定在 `frontend/package-lock.json` 与 `backend/pyproject.toml` 中。
-
-### Windows
-
-以下命令在仓库根目录的 PowerShell 中执行。使用 Anaconda 时，可将第一行的 `python` 换成对应安装目录下的 `python.exe`。
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".\backend[dev]"
-Set-Location .\frontend
-npm ci
-Set-Location ..
-```
-
-Anaconda 也可直接创建目录环境：
-
-```powershell
-conda create -p .\.venv python=3.12 -y
-.\.venv\python.exe -m pip install -e ".\backend[dev]"
-```
-
-### Ubuntu
-
-先安装 Python、桌面 WebKit 运行库和 Node.js，再安装项目依赖：
-
-```bash
-sudo apt update
-sudo apt install python3.12 python3.12-venv python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e './backend[dev]'
-.venv/bin/python -m pip install 'pywebview[gtk]==6.2.1'
-cd frontend
-npm ci
-cd ..
-```
+# 开发协作
 
-### macOS
+[开发者入口](README.md) · [架构](architecture.md) · [测试与验收](testing.md)
 
-准备 Python 3.12、Node.js 和 Xcode Command Line Tools 后执行：
+环境安装、运行和打包命令统一维护在[开发者入口](README.md)，本文面向接手项目的开发者与 AI 助手。
 
-```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -e './backend[dev]'
-cd frontend
-npm ci
-cd ..
-```
+## 接手顺序
 
-## 调试运行
+1. 阅读[用户首页](../README.md)和[使用指南](user-guide.md)，了解实际操作流程。
+2. 阅读[架构与数据约束](architecture.md)，确认规范文档、显示投影与计算几何的边界。
+3. 涉及文字时阅读[文字管线](text-pipeline.md)；涉及文件或接口时查看 `schemas/` 与两端解析器。
+4. 查看 Git 状态及相关测试，辨别已有修改，再进行本次变更。
+5. 使用项目虚拟环境验证，向使用者报告需要手动验收的内容。
 
-### 浏览器开发模式
+历史提交保留开发过程。当前文档描述现状，不将对话中的“下一阶段”“尚未提交”等临时状态作为长期说明。
 
-Vite 开发服务器会把路径规划和设备导出请求转交给本地 Python 进程。默认查找仓库中的 `.venv`；如需指定解释器，设置 `LASERTISCH_PYTHON` 环境变量。
+## 核心约束
 
-Windows：
+| 约束 | 修改时关注 |
+| --- | --- |
+| 整数微米与 0.1° 顺时针角度 | 前后端取整、旋转和工作区边界必须一致 |
+| 轮廓只含直线段 | 字体曲线只在转换中存在，不进入项目和 CAM |
+| 规范项目是持久化来源 | 不保存 Fabric 对象或 Shapely 内部表示 |
+| 固定加工顺序 | 不为缩短空行程擅自重排对象或翻转线段 |
+| 预览与项目分离 | 未应用的布尔、文字和拖动候选不能写入项目 |
+| 异步结果绑定修订号与请求身份 | 修改输入、取消或切换项目后拒绝迟到结果 |
+| 一次操作对应一次撤销 | 拖动、转换、布尔和文字应用不能拆成多条历史 |
+| 保存的文字轮廓独立可用 | 打开项目不能依赖系统字体或自动重新生成 |
+| 短边目标是软目标 | 不断开轮廓或删除孔洞强行满足目标；不改变填充段规则 |
 
-```powershell
-Set-Location .\frontend
-npm run dev
-```
+具体边界与例外以[架构](architecture.md)、模型及测试为准。
 
-Ubuntu 或 macOS：
+## 修改数据契约
 
-```bash
-cd frontend
-npm run dev
-```
+按同一变更同步检查：
 
-打开终端显示的本机地址。前端修改可热更新，Python 修改会在下一次规划或导出请求时生效。
+1. 后端 `backend/src/lasertisch/domain/` 的 Pydantic 模型与应用边界。
+2. 前端 `frontend/src/domain/` 的 TypeScript 类型、文件解析器和响应校验。
+3. 用虚拟环境运行 `backend/scripts/export_schemas.py`，审查 `schemas/` 差异。
+4. 更新相关 fixtures、两端测试和文档。
 
-### 桌面窗口调试
+项目格式版本和桥接 API 版本相互独立，目前分别为 2 和 1。`project-v1.schema.json` 是旧版记录，不用当前模型覆盖。新增实体类型时，明确旧程序能否读取，并测试旧文件迁移。
 
-先生成静态前端，再启动带调试功能的桌面窗口。
+## 语言包与编码
 
-Windows：
+源码、Markdown、JSON、项目文件和标准输入输出桥接均使用 UTF-8。`locales/` 中简体中文、英语、法语、德语和韩语须保持相同键结构。
 
-```powershell
-Set-Location .\frontend
-npm run build
-Set-Location ..
-.\.venv\Scripts\python.exe .\backend\scripts\run_desktop.py --debug
-```
+UI 文案通过语言包提供。提示应跟随所属面板的生命周期；例如字体读取进度只属于文字编辑面板，不应覆盖项目名称或在单纯选择工具时出现。
 
-Anaconda 目录环境的解释器通常位于 `.\.venv\python.exe`。
+## 示例与资源
 
-Ubuntu 或 macOS：
+`fixtures/` 用于演示、契约测试和交互回归，需要保留。文字示例生成器：
 
-```bash
-cd frontend
-npm run build
-cd ..
-.venv/bin/python backend/scripts/run_desktop.py --debug
-```
+- `backend/scripts/generate_text_examples.py`：普通多边形文字、轮廓快照与默认字体目录。
+- `backend/scripts/generate_editable_text_examples.py`：可编辑文字及模拟缺失字体。
 
-## 检查与测试
+使用虚拟环境从根目录执行，生成后审查 JSON 差异，不把例子当作临时文件清理。
 
-Windows：
+默认字体的来源、SHA-256、版权与许可在[字体目录](../backend/src/lasertisch/assets/fonts/README.md)。升级须同时更新 manifest、版权、许可和样例，不能仅替换二进制文件。
 
-```powershell
-.\.venv\Scripts\python.exe -m pytest .\backend\tests
-Set-Location .\frontend
-npm test
-npm run build
-```
+## 仓库卫生
 
-Ubuntu 或 macOS：
+- 保留源码、测试、Schema、fixtures、依赖声明与锁文件、默认字体及许可、图标和文档截图。
+- 不提交 `.venv/`、`node_modules/`、`build/`、`dist/`、`frontend/web-dist/`、Python 缓存、测试缓存和本地压缩包。
+- 发行程序与压缩包通过 GitHub Releases 分发。
+- 清理使用已确认的具体路径；不要在有外部改动的工作区直接运行 `git clean -fdx`。
+- 本地依赖目录可保留供后续开发，由 `.gitignore` 排除。
 
-```bash
-.venv/bin/python -m pytest backend/tests
-cd frontend
-npm test
-npm run build
-```
+## 文档与截图
 
-使用 Anaconda 目录环境时，把 Windows 示例中的 `.\.venv\Scripts\python.exe` 改为 `.\.venv\python.exe`。
+首页保留用户功能与入口；操作细节放在使用指南，实现约束放在开发者文档。移动文件时同步更新相对链接，移除过时的阶段承诺。
 
-修改 Pydantic 契约后，应从仓库根目录重新生成并检查 Schema：
+截图放在 [docs/images/](images/README.md)，由维护者手动启动应用后提供。已有主界面和加工预览可继续使用；补充文字或布尔截图时按目录说明命名。
 
-```powershell
-python .\backend\scripts\export_schemas.py
-```
+## 交付检查
 
-前端的对应 TypeScript 类型和解析器需要与 `schemas/` 中的结果保持一致。
+验证命令见[测试与验收](testing.md)。涉及契约、几何、状态或打包时完成两端测试、前端生产构建和必要的桌面自检；文档调整检查本地链接与命令，无需因此重复生成发行包。
 
-文字核心位于 `backend/src/lasertisch/text/`，字体与许可位于 `backend/src/lasertisch/assets/fonts/`。使用当前虚拟环境运行 `backend/scripts/generate_text_examples.py` 可重新生成文字多边形示例、来源快照和默认字体目录示例；此操作不会修改用户项目。默认字体指纹固定在 manifest 中，升级字体需同时更新来源、版权、许可和样例。
-
-`backend/scripts/generate_editable_text_examples.py` 生成阶段 6 的可编辑文字和模拟字体缺失项目。`domain/text_source.py` 为项目实体和生成请求共享的来源模型，避免模型间循环导入。文字编辑面板与 `editorStore` 的会话、候选轮廓配合，不能将预览写入文档或绕过修订检查。短边处理只作用于重新生成的文字轮廓，既有多边形与填充规则保持原有语义。
-
-浏览器开发模式另提供 `/api/fonts` 与 `/api/text-outline`，桌面桥接对应 `font_catalog` 和 `text_outline`。这些接口只查询或生成数据，不修改文档。系统字体目录是本机信息，项目通过字体文件 SHA-256 和集合字面索引标识字体。
-
-## 构建发行包
-
-发行包必须在目标操作系统上构建。构建脚本会先检查并编译前端，再运行 PyInstaller，最后执行内置自检。
-
-### Windows 单文件程序
-
-```powershell
-.\.venv\Scripts\python.exe .\scripts\build_desktop.py
-```
-
-Anaconda 目录环境使用：
-
-```powershell
-.\.venv\python.exe .\scripts\build_desktop.py
-```
-
-产物为 `dist\LaserTisch.exe`，这是可以单独分发的单文件程序。目标电脑需要 Windows WebView2 Runtime。
-
-发行包包含默认字体、原版权及 OFL 许可；`--self-test` 同时验证默认字体能生成带孔洞的文字轮廓，不需要启动窗口。PyInstaller 收集 FontTools 动态加载的字体表模块。Python wheel 通过 package-data 包含相同字体资源。
-
-平台图标集中放在 `packaging/icons/`：Windows 使用必需的 `windows.ico`，macOS 可提供 `macos.icns`，Linux 可提供 `linux.png`。Windows 图标已从用户提供的 `scripts/icon-windows.ico` 原样移动，构建时传入 `EXE(icon=...)`；其他平台的配置与待补充文件见[图标说明](../packaging/icons/README.md)。Windows 文件浏览器可能缓存旧图标，验收请使用新生成的 EXE。
-
-字体读取在 `text/diagnostics.py` 中对 FontTools 的两个具体日志源安装过滤器，仅忽略已确认可恢复的时间戳和名称表偏移诊断，不改变全局日志级别，不隐藏其他字体错误或异常堆栈，也不修改系统字体文件。
-
-### Ubuntu
-
-```bash
-.venv/bin/python scripts/build_desktop.py
-```
-
-产物入口为 `dist/LaserTisch/LaserTisch`。发布时必须保留并分发整个 `dist/LaserTisch/` 目录。
-
-### macOS
-
-```bash
-.venv/bin/python scripts/build_desktop.py
-```
-
-产物为 `dist/LaserTisch.app`。可在 Finder 中打开，也可从终端执行 `dist/LaserTisch.app/Contents/MacOS/LaserTisch`。
-
-## 语言包
-
-界面文字位于 `locales/*.json`。五个文件必须保持相同的键结构：
-
-- `zh-CN.json`：简体中文，默认语言。
-- `en.json`：英语。
-- `fr.json`：法语。
-- `de.json`：德语。
-- `ko.json`：韩语。
-
-语言包随前端一起打入桌面程序。修改后重新构建前端或发行包即可生效。
-
-## 提交前检查
-
-1. 确认没有改变整数微米、0.1° 角度和固定加工顺序等核心约束。
-2. 运行 Python 测试、前端测试和前端生产构建。
-3. 若改动了契约，重新生成 Schema，并检查 TypeScript 解析器。
-4. 若改动了桌面入口、文件保存或设备编码，重新构建当前平台发行包并启动验证。
-5. 不要提交 `.venv/`、`node_modules/`、`build/`、`dist/`、`frontend/web-dist/` 或测试缓存。
+报告结果、验证范围、需手动验收的操作及尚未覆盖的平台。当前协作约定：由使用者手动启动应用进行 UI 验收；不使用 Computer Use；未经明确指令不创建 Git 提交。提交权限不等于推送或发布权限。

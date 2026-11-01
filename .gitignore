@@ -16,3 +16,10 @@ frontend/web-dist/
 .vscode/
 *.log
 
+# Local source/release archives and operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tsbuildinfo
+coverage/
+
