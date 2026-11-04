@@ -32,8 +32,6 @@ Windows 需要 [Microsoft WebView2 Runtime](https://developer.microsoft.com/micr
 4. 检查加工顺序，开启路径预览，确认填充与空行程。
 5. 保存 `.lasertisch.json` 项目，再导出 CSV 或 DBD。
 
-![加工路径预览](docs/images/toolpath-preview.png)
-
 详细操作、快捷键、文字精度和文件说明见[使用指南](docs/user-guide.md)。也可下载并在软件中打开[多边形示例](fixtures/polygons-v2.lasertisch.json)、[椭圆示例](fixtures/ellipses-v2.lasertisch.json)、[布尔示例](fixtures/booleans-v2.lasertisch.json)或[可编辑文字示例](fixtures/editable-text-v2.lasertisch.json)。
 
 ## 开发与反馈
