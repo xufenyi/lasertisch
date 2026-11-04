@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -143,7 +144,7 @@ function rebuildCanvas(
   registry: Map<EntityId, FabricObject>,
   suppressSelection: React.MutableRefObject<boolean>,
 ): void {
-  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview, textSession, textPreview } = useEditorStore.getState();
+  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview, textSession, textPreview, placementSession } = useEditorStore.getState();
   const preview = booleanPreview?.documentRevision === documentRevision ? booleanPreview : null;
   const viewport = [...canvas.viewportTransform] as [number, number, number, number, number, number];
   suppressSelection.current = true;
@@ -165,13 +166,30 @@ function rebuildCanvas(
     const object=entityToFabricObject(textPreview,document.workArea,zoom);
     object.set({fill:'rgba(46,125,50,0.22)',stroke:'#2e7d32',selectable:false,evented:false});canvas.add(object);
   }
+  if (placementSession) {
+    const stroke = placementSession.valid ? '#2e7d32' : '#c62828';
+    const fill = placementSession.valid ? 'rgba(46,125,50,0.22)' : 'rgba(198,40,40,0.2)';
+    for (const candidate of placementSession.candidates) {
+      const object = entityToFabricObject(candidate, document.workArea, zoom);
+      object.set({
+        visible: true,
+        opacity: 0.72,
+        fill,
+        stroke,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+      });
+      canvas.add(object);
+    }
+  }
   if (preview?.result) {
     const result = entityToFabricObject(preview.result, document.workArea, zoom);
     result.set({ fill: 'rgba(46, 125, 50, 0.25)', stroke: '#2e7d32', selectable: false, evented: false, excludeFromExport: true });
     canvas.add(result);
   }
-  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview || textSession));
-  canvas.selection = tool === 'select' && !polygonEdit && !preview && !textSession;
+  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview || textSession || placementSession));
+  canvas.selection = tool === 'select' && !polygonEdit && !preview && !textSession && !placementSession;
   if (canvas.selection) applySelection(canvas, registry, selectionIds);
   else canvas.discardActiveObject();
   suppressSelection.current = false;
@@ -368,6 +386,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const toolpathOverlayRef = useRef<HTMLCanvasElement>(null);
   const polygonOverlayRef = useRef<HTMLCanvasElement>(null);
   const polygonCursorRef = useRef<PointUm | null>(null);
+  const lastPointerWorldRef = useRef<PointUm | null>(null);
   const vertexDragRef = useRef<VertexDragSession | null>(null);
   const registryRef = useRef(new Map<EntityId, FabricObject>());
   const suppressSelectionRef = useRef(false);
@@ -384,6 +403,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const booleanPreview = useEditorStore((state) => state.booleanPreview);
   const textSession = useEditorStore((state)=>state.textSession);
   const textPreview = useEditorStore((state)=>state.textPreview);
+  const placementSession = useEditorStore((state) => state.placementSession);
   const documentRevision = useEditorStore((state) => state.documentRevision);
   const toolpathPlan = usePlanningStore((state) => state.plan);
   const planRevision = usePlanningStore((state) => state.planRevision);
@@ -422,7 +442,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         toolpathOverlayRef.current,
         planningState.planRevision === editorState.documentRevision ? planningState.plan : null,
         editorState.document.workArea,
-        planningState.previewVisible && !editorState.booleanPreview && !editorState.textSession,
+        planningState.previewVisible && !editorState.booleanPreview && !editorState.textSession && !editorState.placementSession,
       );
       const edit = editorState.polygonEdit;
       const entity = edit ? editorState.transientEntities[edit.entityId] ?? editorState.document.entities.find((item) => item.id === edit.entityId) : null;
@@ -465,7 +485,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     resize();
 
     const syncSelection = (target: FabricObject | undefined) => {
-      if (useEditorStore.getState().polygonEdit || useEditorStore.getState().booleanPreview || useEditorStore.getState().textSession) return;
+      if (useEditorStore.getState().polygonEdit || useEditorStore.getState().booleanPreview || useEditorStore.getState().textSession || useEditorStore.getState().placementSession) return;
       if (!suppressSelectionRef.current) useEditorStore.getState().setSelection(selectedIds(target));
     };
     instance.on('selection:created', () => syncSelection(instance.getActiveObject()));
@@ -602,6 +622,13 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         return;
       }
       if (mouse.button !== 0) return;
+      lastPointerWorldRef.current = sceneToWorld(event.scenePoint, state.document.workArea);
+      if (state.placementSession) {
+        state.movePlacement(lastPointerWorldRef.current);
+        const accepted = useEditorStore.getState().commitPlacement();
+        instance.defaultCursor = accepted ? 'default' : 'not-allowed';
+        return;
+      }
       if(state.textSession) return;
       if(state.tool==='text') {
         state.beginText(pointerWorld(event.scenePoint,state.document.grid.snapMove));return;
@@ -642,6 +669,8 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
 
     instance.on('mouse:move', (event) => {
       const mouse = event.e as MouseEvent;
+      const currentState = useEditorStore.getState();
+      lastPointerWorldRef.current = sceneToWorld(event.scenePoint, currentState.document.workArea);
       if (panSessionRef.current) {
         const viewport = instance.viewportTransform;
         viewport[4] += mouse.clientX - panSessionRef.current.x;
@@ -652,7 +681,11 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         return;
       }
       if (vertexDragRef.current) { updateVertexDrag(event.scenePoint); return; }
-      const currentState = useEditorStore.getState();
+      if (currentState.placementSession) {
+        const valid = currentState.movePlacement(lastPointerWorldRef.current);
+        instance.defaultCursor = valid ? 'copy' : 'not-allowed';
+        return;
+      }
       if (currentState.tool === 'polygon') {
         polygonCursorRef.current = pointerWorld(event.scenePoint, currentState.document.grid.snapMove);
         instance.defaultCursor = isNearPolygonStart(currentState.polygonDraft, event.scenePoint, instance.getZoom(), currentState.document.workArea) ? 'pointer' : 'crosshair';
@@ -676,7 +709,12 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     instance.on('mouse:up', (event) => {
       if (panSessionRef.current) {
         panSessionRef.current = null;
-        instance.defaultCursor = useEditorStore.getState().tool === 'pan' ? 'grab' : 'default';
+        const state = useEditorStore.getState();
+        lastPointerWorldRef.current = sceneToWorld(event.scenePoint, state.document.workArea);
+        if (state.placementSession) state.movePlacement(lastPointerWorldRef.current);
+        const current = useEditorStore.getState();
+        instance.defaultCursor = current.placementSession ? current.placementSession.valid ? 'copy' : 'not-allowed'
+          : current.tool === 'pan' ? 'grab' : 'default';
         return;
       }
       const drag = vertexDragRef.current;
@@ -744,17 +782,18 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     };
   }, [refresh]);
 
-  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, grid, textPreview, textSession, refresh]);
+  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, grid, textPreview, textSession, placementSession, refresh]);
 
   useEffect(() => {
     if (!canvas) return;
+    lastPointerWorldRef.current = null;
     refresh(canvas);
     fitWorkArea(canvas, workArea);
   }, [canvas, workArea, refresh]);
 
   useEffect(() => {
     const state = useEditorStore.getState();
-    if (!canvas || state.polygonEdit || state.booleanPreview || state.textSession || state.tool !== 'select') return;
+    if (!canvas || state.polygonEdit || state.booleanPreview || state.textSession || state.placementSession || state.tool !== 'select') return;
     // Fabric selects on pointer-down and starts its transform immediately. Reapplying
     // the same selection here would replace that active object and cancel the drag.
     if (sameSelection(selectedIds(canvas.getActiveObject()), selectionIds)) return;
@@ -772,20 +811,29 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
       canvas.remove(drawSessionRef.current.preview); drawSessionRef.current = null;
     }
     refresh(canvas);
-    const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview && !state.textSession;
+    const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview && !state.textSession && !state.placementSession;
     canvas.selection = selecting;
-    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview || state.textSession));
-    canvas.defaultCursor = tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
+    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview || state.textSession || state.placementSession));
+    canvas.defaultCursor = state.placementSession ? state.placementSession.valid ? 'copy' : 'not-allowed'
+      : tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
     if (selecting) {
       applySelection(canvas, registryRef.current, state.selectionIds);
-    } else if (!state.polygonEdit && !state.booleanPreview && !state.textSession) {
+    } else if (!state.polygonEdit && !state.booleanPreview && !state.textSession && !state.placementSession) {
       suppressSelectionRef.current = true;
       canvas.discardActiveObject();
       suppressSelectionRef.current = false;
       state.setSelection([]);
     }
     canvas.requestRenderAll();
-  }, [canvas, tool, polygonEdit?.entityId, booleanPreview?.requestId, refresh]);
+  }, [canvas, tool, polygonEdit?.entityId, booleanPreview?.requestId, placementSession?.id, refresh]);
+
+  useLayoutEffect(() => {
+    if (!canvas || !placementSession || placementSession.pointer) return;
+    const state = useEditorStore.getState();
+    state.movePlacement(lastPointerWorldRef.current ?? state.document.workArea.center);
+    const current = useEditorStore.getState().placementSession;
+    canvas.defaultCursor = current?.valid ? 'copy' : 'not-allowed';
+  }, [canvas, placementSession?.id]);
 
   useEffect(() => {
     if (canvas) canvas.requestRenderAll();
@@ -809,8 +857,9 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         <canvas ref={elementRef} />
         <canvas className="toolpath-overlay" ref={toolpathOverlayRef} />
         <canvas className="polygon-overlay" ref={polygonOverlayRef} />
-        {(tool === 'text' || textSession || tool === 'polygon' || polygonEdit || booleanPreview) && <div className="polygon-hint">
-          {textSession ? t('text.previewHint') : tool==='text' ? t('text.placeHint') : booleanPreview ? t('boolean.previewHint') : tool === 'polygon'
+        {(tool === 'text' || textSession || tool === 'polygon' || polygonEdit || booleanPreview || placementSession) && <div className="polygon-hint">
+          {placementSession ? t(placementSession.valid ? 'clipboard.placeHint' : 'clipboard.invalidHint')
+            : textSession ? t('text.previewHint') : tool==='text' ? t('text.placeHint') : booleanPreview ? t('boolean.previewHint') : tool === 'polygon'
             ? t('polygon.drawHint', { count: polygonDraft.length }) : t('polygon.editHint')}
         </div>}
       </div>

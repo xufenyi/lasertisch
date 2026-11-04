@@ -24,6 +24,8 @@ beforeEach(() => {
     documentRevision: 0,
     selectionIds: [],
     transientEntities: {},
+    clipboard: null,
+    placementSession: null,
     tool: 'select',
     status: null,
     undoStack: [],
@@ -154,6 +156,76 @@ describe('canonical editor store', () => {
     expect(useEditorStore.getState().document).toBe(original);
     expect(useEditorStore.getState().undoStack).toHaveLength(0);
     expect(useEditorStore.getState().status).toBe('error.invalidPolygon');
+  });
+
+  it('copies a snapshot and pastes multiple objects as one atomic operation', () => {
+    useEditorStore.getState().loadDocument(parseProjectDocument(JSON.stringify(polygonProject)));
+    const original = useEditorStore.getState().document;
+    const selected = [original.entities[0].id, original.entities[2].id];
+    useEditorStore.getState().setSelection(selected);
+    expect(useEditorStore.getState().copySelected()).toBe(true);
+    expect(useEditorStore.getState().document).toBe(original);
+    expect(useEditorStore.getState().undoStack).toHaveLength(0);
+
+    useEditorStore.getState().renameEntity(selected[0], 'Changed after copy');
+    const beforePaste = useEditorStore.getState().document;
+    expect(useEditorStore.getState().beginPastePlacement()).toBe(true);
+    expect(useEditorStore.getState().movePlacement({ xUm: 0, yUm: 0 })).toBe(true);
+    const candidates = useEditorStore.getState().placementSession!.candidates;
+    expect(candidates.map((entity) => entity.name)).toEqual([
+      original.entities[0].name,
+      original.entities[2].name,
+    ]);
+    expect(useEditorStore.getState().commitPlacement()).toBe(true);
+
+    const state = useEditorStore.getState();
+    expect(state.document.entities).toHaveLength(original.entities.length + 2);
+    expect(state.selectionIds).toEqual(candidates.map((entity) => entity.id));
+    const idMap = new Map(selected.map((id, index) => [id, candidates[index].id]));
+    expect(state.document.processingOrder.slice(-2)).toEqual(
+      original.processingOrder.filter((id) => selected.includes(id)).map((id) => idMap.get(id)),
+    );
+    expect(state.undoStack.at(-1)).toBe(beforePaste);
+    state.undo();
+    expect(useEditorStore.getState().document).toBe(beforePaste);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().document.entities).toHaveLength(original.entities.length + 2);
+  });
+
+  it('duplicates without overwriting the clipboard and Esc-style cancellation changes nothing', () => {
+    useEditorStore.getState().addEntity(line);
+    expect(useEditorStore.getState().copySelected()).toBe(true);
+    const clipboard = useEditorStore.getState().clipboard;
+    const second = { ...line, id: '00000000-0000-0000-0000-000000000222', name: 'Second' };
+    useEditorStore.getState().addEntity(second);
+    const original = useEditorStore.getState().document;
+    expect(useEditorStore.getState().beginDuplicatePlacement()).toBe(true);
+    expect(useEditorStore.getState().clipboard).toBe(clipboard);
+    useEditorStore.getState().movePlacement({ xUm: 20_000, yUm: 20_000 });
+    useEditorStore.getState().cancelPlacement();
+    expect(useEditorStore.getState().document).toBe(original);
+    expect(useEditorStore.getState().undoStack).toHaveLength(2);
+    expect(useEditorStore.getState().selectionIds).toEqual([second.id]);
+  });
+
+  it('keeps an out-of-bounds placement pending and rejects a group too large for a new work area', () => {
+    useEditorStore.getState().addEntity(line);
+    useEditorStore.getState().copySelected();
+    const original = useEditorStore.getState().document;
+    useEditorStore.getState().beginPastePlacement();
+    expect(useEditorStore.getState().movePlacement({ xUm: 95_000, yUm: 95_000 })).toBe(false);
+    expect(useEditorStore.getState().commitPlacement()).toBe(false);
+    expect(useEditorStore.getState().document).toBe(original);
+    expect(useEditorStore.getState().placementSession).not.toBeNull();
+
+    useEditorStore.getState().newProject();
+    expect(useEditorStore.getState().updateWorkArea({
+      widthUm: 500,
+      heightUm: 500,
+      center: { xUm: 0, yUm: 0 },
+    })).toBe(true);
+    expect(useEditorStore.getState().beginPastePlacement()).toBe(false);
+    expect(useEditorStore.getState().status).toBe('clipboard.cannotFit');
   });
 });
 

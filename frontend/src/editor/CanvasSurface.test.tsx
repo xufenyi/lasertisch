@@ -141,6 +141,7 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => new Proxy({}, { get: () => () => {} }) as CanvasRenderingContext2D);
   store().loadDocument(parseProjectDocument(JSON.stringify(fixture)));
+  useEditorStore.setState({ clipboard: null, placementSession: null });
   render(<CanvasSurface />);
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
@@ -198,5 +199,47 @@ describe('polygon canvas interactions', () => {
     fire('mouse:up',target);
     expect(store().document).toBe(original); expect(store().transientEntities).toEqual({});
     expect(store().undoStack).toHaveLength(0);
+  });
+});
+
+describe('copy placement canvas interactions', () => {
+  it('moves a duplicate preview with the pointer and creates it only on a valid click', () => {
+    const source = store().document.entities[0];
+    act(() => store().setSelection([source.id]));
+    const original = store().document;
+    act(() => { expect(store().beginDuplicatePlacement()).toBe(true); });
+    fire('mouse:move', { xUm: 10_000, yUm: 10_000 });
+    const session = store().placementSession!;
+    expect(session.pointer).toEqual({ xUm: 10_000, yUm: 10_000 });
+    expect(session.valid).toBe(true);
+    expect(store().document).toBe(original);
+    expect(store().undoStack).toHaveLength(0);
+    const preview = drawing.canvas!.getObjects().find((object) => getEntityId(object) === session.candidates[0].id)!;
+    expect(preview.stroke).toBe('#2e7d32');
+    expect(preview.selectable).toBe(false);
+
+    click({ xUm: 10_000, yUm: 10_000 });
+    expect(store().placementSession).toBeNull();
+    expect(store().document.entities).toHaveLength(original.entities.length + 1);
+    expect(store().selectionIds).toEqual([session.candidates[0].id]);
+    expect(store().undoStack).toHaveLength(1);
+  });
+
+  it('renders an out-of-bounds preview in red and keeps placement active after clicking', () => {
+    const source = store().document.entities[0];
+    act(() => store().setSelection([source.id]));
+    const original = store().document;
+    act(() => { store().beginDuplicatePlacement(); });
+    fire('mouse:move', { xUm: 95_000, yUm: 95_000 });
+    const session = store().placementSession!;
+    expect(session.valid).toBe(false);
+    const preview = drawing.canvas!.getObjects().find((object) => getEntityId(object) === session.candidates[0].id)!;
+    expect(preview.stroke).toBe('#c62828');
+    click({ xUm: 95_000, yUm: 95_000 });
+    expect(store().document).toBe(original);
+    expect(store().placementSession).not.toBeNull();
+    expect(store().undoStack).toHaveLength(0);
+    act(() => store().cancelPlacement());
+    expect(store().document).toBe(original);
   });
 });

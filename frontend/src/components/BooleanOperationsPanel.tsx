@@ -14,7 +14,7 @@ export function BooleanOperationsPanel() {
   const preview = useEditorStore((state) => state.booleanPreview);
   const tool = useEditorStore((state) => state.tool);
   const editing = useEditorStore((state) => state.polygonEdit);
-  const transient = useEditorStore((state) => Object.keys(state.transientEntities).length > 0);
+  const transient = useEditorStore((state) => Object.keys(state.transientEntities).length > 0 || Boolean(state.placementSession));
   const [operation, setOperation] = useState<BooleanOperation>('union');
   const [swapped, setSwapped] = useState(false);
   const [keepOriginals, setKeepOriginals] = useState(false);

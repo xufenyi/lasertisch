@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 
-import { isEntityInWorkArea } from '../domain/geometry';
+import { isEntityInWorkArea, snapRectangleCenter } from '../domain/geometry';
+import {
+  cloneClipboardForPlacement,
+  entitiesCanFitWorkArea,
+  isEntityPositionValidForPlacement,
+  isEntityValidForPlacement,
+  placementAnchor,
+  translateEntities,
+  type EntityClipboard,
+} from '../domain/entityPlacement';
 import { isValidPolygon } from '../domain/polygonGeometry';
 import { ellipseToPolygon, isValidEllipse } from '../domain/ellipseGeometry';
 import type { BooleanPreview } from '../domain/boolean';
@@ -27,6 +36,17 @@ import {
 
 const HISTORY_LIMIT = 100;
 export interface TextSession { id: string; entityId: string | null; position: PointUm; revision: number }
+export interface EntityPlacementSession {
+  id: string;
+  kind: 'paste' | 'duplicate';
+  documentRevision: number;
+  templateEntities: EditableEntity[];
+  candidates: EditableEntity[];
+  processingOrder: EntityId[];
+  sourceAnchor: PointUm;
+  pointer: PointUm | null;
+  valid: boolean;
+}
 
 interface EditorState {
   document: EditorDocument;
@@ -38,11 +58,19 @@ interface EditorState {
   booleanPreview: BooleanPreview | null;
   textSession: TextSession | null;
   textPreview: TextEntity | null;
+  clipboard: EntityClipboard | null;
+  placementSession: EntityPlacementSession | null;
   beginText: (position: PointUm, entityId?: string) => void;
   cancelText: () => void;
   setTextPreview: (entity: TextEntity | null, sessionId: string) => boolean;
   applyTextPreview: (sessionId: string) => boolean;
   convertTextToPolygon: (id: EntityId) => void;
+  copySelected: () => boolean;
+  beginPastePlacement: () => boolean;
+  beginDuplicatePlacement: () => boolean;
+  movePlacement: (point: PointUm) => boolean;
+  commitPlacement: () => boolean;
+  cancelPlacement: () => void;
   tool: Tool;
   status: string | null;
   undoStack: EditorDocument[];
@@ -104,6 +132,7 @@ function committedDocument(state: EditorState, document: EditorDocument) {
     polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
     booleanPreview: null,
     textSession: null, textPreview: null,
+    placementSession: null,
     isDirty: fingerprint(document) !== state.savedFingerprint,
     status: null,
   };
@@ -144,12 +173,59 @@ function closedGeometryError(entity: EditableEntity, workArea: WorkAreaSettings)
 function booleanOperands(state: EditorState, preview: BooleanPreview) {
   const a = state.document.entities.find((entity) => entity.id === preview.operandAId);
   const b = state.document.entities.find((entity) => entity.id === preview.operandBId);
-  if (state.documentRevision !== preview.documentRevision || state.tool !== 'select' || state.polygonEdit ||
+  if (state.documentRevision !== preview.documentRevision || state.tool !== 'select' || state.polygonEdit || state.placementSession ||
     Object.keys(state.transientEntities).length || state.selectionIds.length !== 2 ||
     !state.selectionIds.includes(preview.operandAId) || !state.selectionIds.includes(preview.operandBId) ||
     preview.operandAId === preview.operandBId || !a || !b || a.kind === 'line' || b.kind === 'line' ||
     a.locked || b.locked || !a.visible || !b.visible) return null;
   return { a, b };
+}
+
+function clipboardFromSelection(state: EditorState): EntityClipboard | null {
+  const selected = new Set(state.selectionIds);
+  const entities = state.document.entities
+    .filter((entity) => selected.has(entity.id))
+    .map((entity) => structuredClone(entity));
+  if (!entities.length) return null;
+  return {
+    entities,
+    processingOrder: state.document.processingOrder.filter((id) => selected.has(id)),
+  };
+}
+
+function beginPlacement(
+  state: EditorState,
+  clipboard: EntityClipboard,
+  kind: EntityPlacementSession['kind'],
+) {
+  const clones = cloneClipboardForPlacement(clipboard);
+  const sourceAnchor = clones && placementAnchor(clones.entities);
+  if (!clones || !sourceAnchor) return { status: 'clipboard.invalid' };
+  if (!entitiesCanFitWorkArea(clones.entities, state.document.workArea)) {
+    return { status: 'clipboard.cannotFit' };
+  }
+  const placementSession: EntityPlacementSession = {
+    id: createEntityId(),
+    kind,
+    documentRevision: state.documentRevision,
+    templateEntities: clones.entities,
+    candidates: clones.entities,
+    processingOrder: clones.processingOrder,
+    sourceAnchor,
+    pointer: null,
+    valid: clones.entities.every((entity) => isEntityPositionValidForPlacement(entity, state.document.workArea)),
+  };
+  return {
+    placementSession,
+    tool: 'select' as const,
+    polygonDraft: [],
+    polygonEdit: null,
+    booleanPreview: null,
+    textSession: null,
+    textPreview: null,
+    transientEntities: {},
+    status: null,
+  };
 }
 
 export function isValidEntityName(name: string): boolean {
@@ -167,6 +243,8 @@ export const useEditorStore = create<EditorState>((set) => {
     polygonEdit: null,
     booleanPreview: null,
     textSession: null, textPreview: null,
+    clipboard: null,
+    placementSession: null,
     tool: 'select',
     status: null,
     undoStack: [],
@@ -178,7 +256,7 @@ export const useEditorStore = create<EditorState>((set) => {
       const entity=entityId ? state.document.entities.find(e=>e.id===entityId) : null;
       if(entityId && (entity?.kind!=='text' || entity.locked || !entity.visible)) return {};
       return {textSession:{id:createEntityId(),entityId:entityId ?? null,position:{...position},revision:state.documentRevision},
-        textPreview:null,tool:'select',selectionIds:entityId ? [entityId] : [],booleanPreview:null,polygonEdit:null,polygonDraft:[],transientEntities:{},status:null};
+        textPreview:null,tool:'select',selectionIds:entityId ? [entityId] : [],booleanPreview:null,polygonEdit:null,polygonDraft:[],transientEntities:{},placementSession:null,status:null};
     }),
     cancelText: () => set({textSession:null,textPreview:null}),
     setTextPreview: (entity,sessionId) => {
@@ -212,6 +290,91 @@ export const useEditorStore = create<EditorState>((set) => {
         process:{...entity.process},position:{...entity.position},rotationTenthsDeg:entity.rotationTenthsDeg,parts:structuredClone(entity.parts)};
       return committedDocument(state,{...state.document,entities:state.document.entities.map(e=>e.id===id ? polygon : e)});
     }),
+
+    copySelected: () => {
+      let accepted = false;
+      set((state) => {
+        if (state.placementSession) return {};
+        const clipboard = clipboardFromSelection(state);
+        if (!clipboard) return { status: 'clipboard.emptySelection' };
+        accepted = true;
+        return { clipboard, status: null };
+      });
+      return accepted;
+    },
+    beginPastePlacement: () => {
+      let accepted = false;
+      set((state) => {
+        if (!state.clipboard) return { status: 'clipboard.empty' };
+        const result = beginPlacement(state, state.clipboard, 'paste');
+        accepted = 'placementSession' in result;
+        return result;
+      });
+      return accepted;
+    },
+    beginDuplicatePlacement: () => {
+      let accepted = false;
+      set((state) => {
+        const clipboard = clipboardFromSelection(state);
+        if (!clipboard) return { status: 'clipboard.emptySelection' };
+        const result = beginPlacement(state, clipboard, 'duplicate');
+        accepted = 'placementSession' in result;
+        return result;
+      });
+      return accepted;
+    },
+    movePlacement: (point) => {
+      let valid = false;
+      set((state) => {
+        const session = state.placementSession;
+        if (!session) return {};
+        if (session.documentRevision !== state.documentRevision || !Number.isSafeInteger(point.xUm) || !Number.isSafeInteger(point.yUm)) {
+          return { placementSession: null, status: 'clipboard.stale' };
+        }
+        const pointer = state.document.grid.snapMove
+          ? snapRectangleCenter(point, state.document.grid.spacingUm, state.document.workArea)
+          : point;
+        const candidates = translateEntities(
+          session.templateEntities,
+          pointer.xUm - session.sourceAnchor.xUm,
+          pointer.yUm - session.sourceAnchor.yUm,
+        );
+        valid = candidates.every((entity) => isEntityPositionValidForPlacement(entity, state.document.workArea));
+        return { placementSession: { ...session, pointer, candidates, valid }, status: null };
+      });
+      return valid;
+    },
+    commitPlacement: () => {
+      let accepted = false;
+      set((state) => {
+        const session = state.placementSession;
+        if (!session || session.documentRevision !== state.documentRevision) {
+          return { placementSession: null, status: 'clipboard.stale' };
+        }
+        if (!session.valid || !session.candidates.every((entity) => isEntityValidForPlacement(entity, state.document.workArea))) {
+          return { status: 'error.geometryOutOfBounds' };
+        }
+        const existingIds = new Set(state.document.entities.map((entity) => entity.id));
+        const candidateIds = session.candidates.map((entity) => entity.id);
+        if (candidateIds.some((id) => existingIds.has(id)) || new Set(candidateIds).size !== candidateIds.length ||
+          session.processingOrder.length !== candidateIds.length || new Set(session.processingOrder).size !== candidateIds.length ||
+          session.processingOrder.some((id) => !candidateIds.includes(id))) {
+          return { placementSession: null, status: 'clipboard.invalid' };
+        }
+        accepted = true;
+        return {
+          ...committedDocument(state, {
+            ...state.document,
+            entities: [...state.document.entities, ...session.candidates],
+            processingOrder: [...state.document.processingOrder, ...session.processingOrder],
+          }),
+          selectionIds: candidateIds,
+          placementSession: null,
+        };
+      });
+      return accepted;
+    },
+    cancelPlacement: () => set({ placementSession: null, status: null }),
 
     addEntity: (entity) => set((state) => {
       const error = closedGeometryError(entity, state.document.workArea);
@@ -254,11 +417,12 @@ export const useEditorStore = create<EditorState>((set) => {
     setTransientEntities: (entities) => set({
       transientEntities: Object.fromEntries(entities.map((entity) => [entity.id, entity])),
       booleanPreview: null,
+      placementSession: null,
     }),
     clearTransientEntities: () => set({ transientEntities: {} }),
 
     deleteSelected: () => set((state) => {
-      if (state.polygonEdit || state.tool === 'polygon' || state.textSession) return {};
+      if (state.polygonEdit || state.tool === 'polygon' || state.textSession || state.placementSession) return {};
       if (!state.selectionIds.length) return {};
       const deleted = new Set(state.selectionIds);
       return {
@@ -273,8 +437,8 @@ export const useEditorStore = create<EditorState>((set) => {
 
     setSelection: (ids) => set((state) => sameIds(state.selectionIds, ids)
       ? state
-      : { selectionIds: ids, transientEntities: {}, booleanPreview: null, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
-    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, booleanPreview: null, transientEntities: {}, textSession:null,textPreview:null }),
+      : { selectionIds: ids, transientEntities: {}, booleanPreview: null, placementSession: null, polygonEdit: ids.length === 1 && ids[0] === state.polygonEdit?.entityId ? state.polygonEdit : null }),
+    setTool: (tool) => set({ tool, status: null, polygonDraft: [], polygonEdit: null, booleanPreview: null, placementSession: null, transientEntities: {}, textSession:null,textPreview:null }),
 
     appendPolygonPoint: (point) => {
       let accepted = false;
@@ -509,6 +673,7 @@ export const useEditorStore = create<EditorState>((set) => {
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
         booleanPreview: null, textSession:null, textPreview:null,
+        placementSession: null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -527,6 +692,7 @@ export const useEditorStore = create<EditorState>((set) => {
         transientEntities: {},
         polygonEdit: reconcilePolygonEdit(state.polygonEdit, document.entities),
         booleanPreview: null, textSession:null, textPreview:null,
+        placementSession: null,
         isDirty: fingerprint(document) !== state.savedFingerprint,
         status: null,
       };
@@ -541,6 +707,7 @@ export const useEditorStore = create<EditorState>((set) => {
         transientEntities: {},
         polygonDraft: [], polygonEdit: null,
         booleanPreview: null, textSession:null, textPreview:null,
+        placementSession: null,
         tool: 'select',
         undoStack: [],
         redoStack: [],
@@ -557,6 +724,7 @@ export const useEditorStore = create<EditorState>((set) => {
       transientEntities: {},
       polygonDraft: [], polygonEdit: null,
       booleanPreview: null, textSession:null, textPreview:null,
+      placementSession: null,
       tool: 'select',
       undoStack: [],
       redoStack: [],

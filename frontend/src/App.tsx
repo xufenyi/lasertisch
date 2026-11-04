@@ -6,6 +6,7 @@ import { EditorToolbar } from './components/EditorToolbar';
 import { PropertiesPanel } from './components/PropertiesPanel';
 import { CanvasSurface, type CanvasSurfaceHandle } from './editor/CanvasSurface';
 import { isFitWorkAreaShortcut, toolForShortcut } from './editor/toolShortcuts';
+import { editShortcutFor } from './editor/editShortcuts';
 import { handlePolygonKey } from './editor/polygonKeyboard';
 import { useEditorStore } from './state/editorStore';
 import { usePlanningStore } from './planning/planningStore';
@@ -40,6 +41,11 @@ export default function App() {
   const setStatus = useEditorStore((state) => state.setStatus);
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
+  const copySelected = useEditorStore((state) => state.copySelected);
+  const beginPastePlacement = useEditorStore((state) => state.beginPastePlacement);
+  const beginDuplicatePlacement = useEditorStore((state) => state.beginDuplicatePlacement);
+  const cancelPlacement = useEditorStore((state) => state.cancelPlacement);
+  const placementActive = useEditorStore((state) => Boolean(state.placementSession));
   const isDirty = useEditorStore((state) => state.isDirty);
   const projectName = useEditorStore((state) => state.document.projectName);
   const planningStatus = usePlanningStore((state) => state.status);
@@ -81,6 +87,26 @@ export default function App() {
         target?.isContentEditable ||
         Boolean(target?.closest('[role="listbox"], [role="menu"], [role="combobox"]'));
       if (editing) return;
+      const editShortcut = editShortcutFor(
+        event.key,
+        event.ctrlKey,
+        event.metaKey,
+        event.altKey,
+        event.shiftKey,
+      );
+      if (editShortcut) {
+        event.preventDefault();
+        if (event.repeat) return;
+        if (editShortcut === 'copy') copySelected();
+        else if (editShortcut === 'paste') beginPastePlacement();
+        else beginDuplicatePlacement();
+        return;
+      }
+      if (placementActive && event.key === 'Escape') {
+        event.preventDefault();
+        cancelPlacement();
+        return;
+      }
       if (handlePolygonKey(event, t('tool.polygon'))) return;
       const modifier = event.ctrlKey || event.metaKey;
       if (modifier && !event.altKey && event.key.toLowerCase() === 'z') {
@@ -109,7 +135,8 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [deleteSelected, redo, setSelection, setTool, undo, t]);
+  }, [beginDuplicatePlacement, beginPastePlacement, cancelPlacement, copySelected,
+    deleteSelected, placementActive, redo, setSelection, setTool, undo, t]);
 
   return (
     <ThemeProvider theme={theme}>

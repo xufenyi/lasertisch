@@ -10,6 +10,9 @@ import FolderOpenRoundedIcon from '@mui/icons-material/FolderOpenRounded';
 import RedoRoundedIcon from '@mui/icons-material/RedoRounded';
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded';
 import UndoRoundedIcon from '@mui/icons-material/UndoRounded';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import ContentPasteRoundedIcon from '@mui/icons-material/ContentPasteRounded';
+import FilterNoneRoundedIcon from '@mui/icons-material/FilterNoneRounded';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -33,6 +36,12 @@ export function ProjectActions() {
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
   const setStatus = useEditorStore((state) => state.setStatus);
+  const selectionCount = useEditorStore((state) => state.selectionIds.length);
+  const hasClipboard = useEditorStore((state) => Boolean(state.clipboard));
+  const placementActive = useEditorStore((state) => Boolean(state.placementSession));
+  const copySelected = useEditorStore((state) => state.copySelected);
+  const beginPastePlacement = useEditorStore((state) => state.beginPastePlacement);
+  const beginDuplicatePlacement = useEditorStore((state) => state.beginDuplicatePlacement);
 
   const mayDiscard = useCallback(() => !isDirty || window.confirm(t('project.confirmDiscard')), [isDirty,t]);
   const create = useCallback(() => { if (mayDiscard()) newProject(); }, [mayDiscard,newProject]);
@@ -142,6 +151,7 @@ export function ProjectActions() {
           <SaveRoundedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
       <Tooltip title={`${t('common.undo')} (Ctrl/⌘+Z)`}>
         <span>
           <IconButton size="small" aria-label={t('common.undo')} disabled={!canUndo} onClick={undo}>
@@ -153,6 +163,31 @@ export function ProjectActions() {
         <span>
           <IconButton size="small" aria-label={t('common.redo')} disabled={!canRedo} onClick={redo}>
             <RedoRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+      <Tooltip title={`${t('common.copy')} (Ctrl/⌘+C)`}>
+        <span>
+          <IconButton size="small" aria-label={t('common.copy')} aria-keyshortcuts="Control+C Meta+C"
+            disabled={!selectionCount || placementActive} onClick={copySelected}>
+            <ContentCopyRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title={`${t('common.paste')} (Ctrl/⌘+V)`}>
+        <span>
+          <IconButton size="small" aria-label={t('common.paste')} aria-keyshortcuts="Control+V Meta+V"
+            disabled={!hasClipboard || placementActive} onClick={beginPastePlacement}>
+            <ContentPasteRoundedIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title={`${t('common.duplicate')} (Ctrl/⌘+D)`}>
+        <span>
+          <IconButton size="small" aria-label={t('common.duplicate')} aria-keyshortcuts="Control+D Meta+D"
+            disabled={!selectionCount || placementActive} onClick={beginDuplicatePlacement}>
+            <FilterNoneRoundedIcon fontSize="small" />
           </IconButton>
         </span>
       </Tooltip>
