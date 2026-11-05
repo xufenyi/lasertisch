@@ -94,16 +94,21 @@ def test_invalid_requests_are_structured_failures(change,code):
     assert response['requestId']==str(DOC) and response['documentRevision']==9
 
 
-@pytest.mark.parametrize('condition',['line','locked','hidden'])
-def test_line_locked_and_hidden_operands_are_rejected(condition):
+def test_line_operands_are_rejected():
     data=request(); entity=data['document']['entities'][1]
-    if condition=='line':
-        data['document']['entities'][1]={key:value for key,value in entity.items() if key not in ('center','widthUm','heightUm','rotationTenthsDeg')}
-        data['document']['entities'][1].update(kind='line',start={'xUm':0,'yUm':0},end={'xUm':1000,'yUm':0})
-    elif condition=='locked': entity['locked']=True
-    else: entity['visible']=False
+    data['document']['entities'][1]={key:value for key,value in entity.items() if key not in ('center','widthUm','heightUm','rotationTenthsDeg')}
+    data['document']['entities'][1].update(kind='line',start={'xUm':0,'yUm':0},end={'xUm':1000,'yUm':0})
     response=ApplicationApi().boolean_geometry(data)
-    assert response['errors'][0]['code']==('boolean.closed_shapes_required' if condition=='line' else 'boolean.operands_unavailable')
+    assert response['errors'][0]['code']=='boolean.closed_shapes_required'
+
+
+def test_legacy_visibility_and_lock_fields_are_accepted_but_not_persisted():
+    data=request()['document']
+    data['entities'][0].update(visible=False,locked=True)
+    document=ProjectDocument.model_validate(data)
+    saved=document.model_dump(mode='json',by_alias=True)
+    assert 'visible' not in saved['entities'][0]
+    assert 'locked' not in saved['entities'][0]
 
 
 def test_boolean_result_schema_rejects_inconsistent_empty_or_error_states():

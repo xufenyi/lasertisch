@@ -20,9 +20,11 @@ import {
 import {
   createEmptyDocument,
   createEntityId,
+  DEFAULT_ENTITY_WORKSPACE_STATE,
   type EditableEntity,
   type EditorDocument,
   type EntityId,
+  type EntityWorkspaceState,
   type GridSettings,
   type GlobalSettings,
   type ProcessSpec,
@@ -43,14 +45,16 @@ export interface EntityPlacementSession {
   templateEntities: EditableEntity[];
   candidates: EditableEntity[];
   processingOrder: EntityId[];
+  workspaceStates: Record<EntityId, EntityWorkspaceState>;
   sourceAnchor: PointUm;
   pointer: PointUm | null;
   valid: boolean;
 }
 
-interface EditorState {
+export interface EditorState {
   document: EditorDocument;
   documentRevision: number;
+  entityWorkspaceStates: Record<EntityId, EntityWorkspaceState>;
   selectionIds: EntityId[];
   transientEntities: Record<EntityId, EditableEntity>;
   polygonDraft: PointUm[];
@@ -80,6 +84,8 @@ interface EditorState {
   addEntity: (entity: EditableEntity) => void;
   replaceEntities: (entities: EditableEntity[]) => void;
   renameEntity: (id: EntityId, name: string) => boolean;
+  toggleEntityVisibility: (id: EntityId) => void;
+  toggleEntityLocked: (id: EntityId) => void;
   setTransientEntities: (entities: EditableEntity[]) => void;
   clearTransientEntities: () => void;
   deleteSelected: () => void;
@@ -104,7 +110,7 @@ interface EditorState {
   updateSelectedProcess: (patch: Partial<ProcessSpec>) => boolean;
   updateDefaultProcess: (patch: Partial<ProcessSpec>) => boolean;
   updateGlobalSettings: (patch: Partial<GlobalSettings>) => boolean;
-  moveProcessingOrder: (id: EntityId, direction: -1 | 1) => void;
+  moveProcessingOrder: (id: EntityId, destinationIndex: number) => void;
   undo: () => void;
   redo: () => void;
   newProject: (projectName?: string) => void;
@@ -119,6 +125,21 @@ function sameIds(first: EntityId[], second: EntityId[]): boolean {
 
 function fingerprint(document: EditorDocument): string {
   return JSON.stringify(document);
+}
+
+export function workspaceStateFor(
+  state: Pick<EditorState, 'entityWorkspaceStates'>,
+  id: EntityId,
+): Readonly<EntityWorkspaceState> {
+  return state.entityWorkspaceStates[id] ?? DEFAULT_ENTITY_WORKSPACE_STATE;
+}
+
+function isEntityLocked(state: EditorState, id: EntityId): boolean {
+  return workspaceStateFor(state, id).locked;
+}
+
+function isEntityVisible(state: EditorState, id: EntityId): boolean {
+  return workspaceStateFor(state, id).visible;
 }
 
 function committedDocument(state: EditorState, document: EditorDocument) {
@@ -140,7 +161,7 @@ function committedDocument(state: EditorState, document: EditorDocument) {
 
 function editedPolygon(state: EditorState): PolygonEntity | null {
   const entity = state.document.entities.find((item) => item.id === state.polygonEdit?.entityId);
-  return entity?.kind === 'polygon' && !entity.locked && entity.visible ? entity : null;
+  return entity?.kind === 'polygon' && !isEntityLocked(state, entity.id) ? entity : null;
 }
 
 function commitPolygonEdit(state: EditorState, entity: PolygonEntity | null, vertex?: PolygonVertexAddress) {
@@ -177,7 +198,8 @@ function booleanOperands(state: EditorState, preview: BooleanPreview) {
     Object.keys(state.transientEntities).length || state.selectionIds.length !== 2 ||
     !state.selectionIds.includes(preview.operandAId) || !state.selectionIds.includes(preview.operandBId) ||
     preview.operandAId === preview.operandBId || !a || !b || a.kind === 'line' || b.kind === 'line' ||
-    a.locked || b.locked || !a.visible || !b.visible) return null;
+    isEntityLocked(state, a.id) || isEntityLocked(state, b.id) ||
+    !isEntityVisible(state, a.id) || !isEntityVisible(state, b.id)) return null;
   return { a, b };
 }
 
@@ -190,6 +212,11 @@ function clipboardFromSelection(state: EditorState): EntityClipboard | null {
   return {
     entities,
     processingOrder: state.document.processingOrder.filter((id) => selected.has(id)),
+    sourceDocumentId: state.document.documentId,
+    workspaceStates: Object.fromEntries(entities.map((entity) => [
+      entity.id,
+      { ...workspaceStateFor(state, entity.id) },
+    ])),
   };
 }
 
@@ -211,6 +238,9 @@ function beginPlacement(
     templateEntities: clones.entities,
     candidates: clones.entities,
     processingOrder: clones.processingOrder,
+    workspaceStates: clipboard.sourceDocumentId === state.document.documentId
+      ? clones.workspaceStates
+      : Object.fromEntries(clones.entities.map((entity) => [entity.id, { visible: true, locked: false }])),
     sourceAnchor,
     pointer: null,
     valid: clones.entities.every((entity) => isEntityPositionValidForPlacement(entity, state.document.workArea)),
@@ -237,6 +267,7 @@ export const useEditorStore = create<EditorState>((set) => {
   return {
     document: initialDocument,
     documentRevision: 0,
+    entityWorkspaceStates: {},
     selectionIds: [],
     transientEntities: {},
     polygonDraft: [],
@@ -254,7 +285,7 @@ export const useEditorStore = create<EditorState>((set) => {
 
     beginText: (position, entityId) => set((state) => {
       const entity=entityId ? state.document.entities.find(e=>e.id===entityId) : null;
-      if(entityId && (entity?.kind!=='text' || entity.locked || !entity.visible)) return {};
+      if(entityId && (entity?.kind!=='text' || isEntityLocked(state, entityId))) return {};
       return {textSession:{id:createEntityId(),entityId:entityId ?? null,position:{...position},revision:state.documentRevision},
         textPreview:null,tool:'select',selectionIds:entityId ? [entityId] : [],booleanPreview:null,polygonEdit:null,polygonDraft:[],transientEntities:{},placementSession:null,status:null};
     }),
@@ -274,7 +305,7 @@ export const useEditorStore = create<EditorState>((set) => {
         const session=state.textSession, candidate=state.textPreview;
         if(!session || session.id!==sessionId || session.revision!==state.documentRevision || !candidate || closedGeometryError(candidate,state.document.workArea)) return {};
         const previous=state.document.entities.find(e=>e.id===session.entityId);
-        if(session.entityId && (previous?.kind!=='text' || previous.locked || !previous.visible)) return {};
+        if(session.entityId && (previous?.kind!=='text' || isEntityLocked(state, session.entityId))) return {};
         const entity=previous ? {...candidate,name:previous.name,process:{...previous.process}} : candidate;
         accepted=true;
         return {...committedDocument(state,{...state.document,
@@ -285,8 +316,8 @@ export const useEditorStore = create<EditorState>((set) => {
     },
     convertTextToPolygon: (id) => set(state=>{
       const entity=state.document.entities.find(e=>e.id===id);
-      if(entity?.kind!=='text' || entity.locked || !entity.visible) return {};
-      const polygon: PolygonEntity={id:entity.id,name:entity.name,kind:'polygon',visible:entity.visible,locked:entity.locked,
+      if(entity?.kind!=='text' || isEntityLocked(state, id)) return {};
+      const polygon: PolygonEntity={id:entity.id,name:entity.name,kind:'polygon',
         process:{...entity.process},position:{...entity.position},rotationTenthsDeg:entity.rotationTenthsDeg,parts:structuredClone(entity.parts)};
       return committedDocument(state,{...state.document,entities:state.document.entities.map(e=>e.id===id ? polygon : e)});
     }),
@@ -368,6 +399,7 @@ export const useEditorStore = create<EditorState>((set) => {
             entities: [...state.document.entities, ...session.candidates],
             processingOrder: [...state.document.processingOrder, ...session.processingOrder],
           }),
+          entityWorkspaceStates: { ...state.entityWorkspaceStates, ...session.workspaceStates },
           selectionIds: candidateIds,
           placementSession: null,
         };
@@ -392,6 +424,9 @@ export const useEditorStore = create<EditorState>((set) => {
     replaceEntities: (entities) => {
       const replacements = new Map(entities.map((entity) => [entity.id, entity]));
       set((state) => {
+        if (entities.some((entity) => isEntityLocked(state, entity.id))) {
+          return { status: 'error.entityLocked', transientEntities: {} };
+        }
         const error = entities.map((entity) => closedGeometryError(entity, state.document.workArea)).find(Boolean);
         if (error) return { status: error, transientEntities: {} };
         return committedDocument(state, {
@@ -414,16 +449,65 @@ export const useEditorStore = create<EditorState>((set) => {
       return true;
     },
 
-    setTransientEntities: (entities) => set({
-      transientEntities: Object.fromEntries(entities.map((entity) => [entity.id, entity])),
-      booleanPreview: null,
-      placementSession: null,
+    toggleEntityVisibility: (id) => set((state) => {
+      if (!state.document.entities.some((entity) => entity.id === id)) return {};
+      const current = workspaceStateFor(state, id);
+      const visible = !current.visible;
+      const affectsBoolean = state.booleanPreview &&
+        (state.booleanPreview.operandAId === id || state.booleanPreview.operandBId === id);
+      const affectsText = state.textSession?.entityId === id;
+      return {
+        entityWorkspaceStates: {
+          ...state.entityWorkspaceStates,
+          [id]: { ...current, visible },
+        },
+        polygonEdit: !visible && state.polygonEdit?.entityId === id ? null : state.polygonEdit,
+        booleanPreview: affectsBoolean ? null : state.booleanPreview,
+        textSession: !visible && affectsText ? null : state.textSession,
+        textPreview: !visible && affectsText ? null : state.textPreview,
+        transientEntities: !visible && (state.polygonEdit?.entityId === id || affectsText)
+          ? {}
+          : state.transientEntities,
+        status: null,
+      };
     }),
+
+    toggleEntityLocked: (id) => set((state) => {
+      if (!state.document.entities.some((entity) => entity.id === id)) return {};
+      const current = workspaceStateFor(state, id);
+      const locked = !current.locked;
+      const affectsBoolean = state.booleanPreview &&
+        (state.booleanPreview.operandAId === id || state.booleanPreview.operandBId === id);
+      const affectsText = state.textSession?.entityId === id;
+      return {
+        entityWorkspaceStates: {
+          ...state.entityWorkspaceStates,
+          [id]: { ...current, locked },
+        },
+        polygonEdit: locked && state.polygonEdit?.entityId === id ? null : state.polygonEdit,
+        booleanPreview: locked && affectsBoolean ? null : state.booleanPreview,
+        textSession: locked && affectsText ? null : state.textSession,
+        textPreview: locked && affectsText ? null : state.textPreview,
+        transientEntities: locked && (state.polygonEdit?.entityId === id || affectsText)
+          ? {}
+          : state.transientEntities,
+        status: null,
+      };
+    }),
+
+    setTransientEntities: (entities) => set((state) => entities.some((entity) => isEntityLocked(state, entity.id))
+      ? { status: 'error.entityLocked', transientEntities: {} }
+      : {
+          transientEntities: Object.fromEntries(entities.map((entity) => [entity.id, entity])),
+          booleanPreview: null,
+          placementSession: null,
+        }),
     clearTransientEntities: () => set({ transientEntities: {} }),
 
     deleteSelected: () => set((state) => {
       if (state.polygonEdit || state.tool === 'polygon' || state.textSession || state.placementSession) return {};
       if (!state.selectionIds.length) return {};
+      if (state.selectionIds.some((id) => isEntityLocked(state, id))) return { status: 'error.entityLocked' };
       const deleted = new Set(state.selectionIds);
       return {
         ...committedDocument(state, {
@@ -471,7 +555,7 @@ export const useEditorStore = create<EditorState>((set) => {
     },
     startPolygonEdit: (id) => set((state) => {
       const entity = state.document.entities.find((item) => item.id === id);
-      if (entity?.kind !== 'polygon' || entity.locked || !entity.visible) return {};
+      if (entity?.kind !== 'polygon' || isEntityLocked(state, id)) return {};
       return { tool: 'select', selectionIds: [id], polygonDraft: [], transientEntities: {}, booleanPreview: null, status: null,
         polygonEdit: { entityId: id, vertex: { partIndex: 0, ringIndex: 0, vertexIndex: 0 } } };
     }),
@@ -495,7 +579,7 @@ export const useEditorStore = create<EditorState>((set) => {
         const operands = preview && booleanOperands(state, preview);
         if (!preview || preview.requestId !== requestId || !operands) return { booleanPreview: null, status: 'boolean.stale' };
         if (preview.empty && (keepOriginals || !allowEmpty)) return { status: 'boolean.emptyNeedsConfirmation' };
-        const result = preview.result ? { ...preview.result, name, process: { ...operands.a.process }, visible: true, locked: false } : null;
+        const result = preview.result ? { ...preview.result, name, process: { ...operands.a.process } } : null;
         if (result && (!isValidEntityName(name) || closedGeometryError(result, state.document.workArea) ||
           state.document.entities.some((entity) => entity.id === result.id))) return { status: 'error.invalidPolygon' };
         const entities = state.document.entities.flatMap((entity) => {
@@ -516,7 +600,7 @@ export const useEditorStore = create<EditorState>((set) => {
       let accepted = false;
       set((state) => {
         const entity = state.document.entities.find((item) => item.id === id);
-        if (entity?.kind !== 'ellipse' || entity.locked || !entity.visible) return {};
+        if (entity?.kind !== 'ellipse' || isEntityLocked(state, id)) return {};
         const polygon = ellipseToPolygon(entity);
         if (!isValidPolygon(polygon) || !isEntityInWorkArea(polygon, state.document.workArea)) return { status: 'error.invalidEllipse' };
         accepted = true;
@@ -606,6 +690,9 @@ export const useEditorStore = create<EditorState>((set) => {
       set((state) => {
         const selected = new Set(state.selectionIds);
         if (!selected.size) return {};
+        if ([...selected].some((id) => isEntityLocked(state, id))) {
+          return { status: 'error.entityLocked' };
+        }
         const entities = state.document.entities.map((entity) => {
           if (!selected.has(entity.id)) return entity;
           const process = { ...entity.process, ...patch };
@@ -651,12 +738,13 @@ export const useEditorStore = create<EditorState>((set) => {
       return accepted;
     },
 
-    moveProcessingOrder: (id, direction) => set((state) => {
+    moveProcessingOrder: (id, destinationIndex) => set((state) => {
       const index = state.document.processingOrder.indexOf(id);
-      const destination = index + direction;
-      if (index < 0 || destination < 0 || destination >= state.document.processingOrder.length) return {};
+      const destination = Math.max(0, Math.min(state.document.processingOrder.length - 1, destinationIndex));
+      if (index < 0 || !Number.isSafeInteger(destinationIndex) || destination === index) return {};
       const processingOrder = [...state.document.processingOrder];
-      [processingOrder[index], processingOrder[destination]] = [processingOrder[destination], processingOrder[index]];
+      processingOrder.splice(index, 1);
+      processingOrder.splice(destination, 0, id);
       return committedDocument(state, { ...state.document, processingOrder });
     }),
 
@@ -703,6 +791,7 @@ export const useEditorStore = create<EditorState>((set) => {
       return {
         document,
         documentRevision: state.documentRevision + 1,
+        entityWorkspaceStates: {},
         selectionIds: [],
         transientEntities: {},
         polygonDraft: [], polygonEdit: null,
@@ -720,6 +809,7 @@ export const useEditorStore = create<EditorState>((set) => {
     loadDocument: (document) => set((state) => ({
       document,
       documentRevision: state.documentRevision + 1,
+      entityWorkspaceStates: {},
       selectionIds: [],
       transientEntities: {},
       polygonDraft: [], polygonEdit: null,

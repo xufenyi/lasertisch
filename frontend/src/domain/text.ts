@@ -152,6 +152,6 @@ export async function parseTextOutlineResponse(value: unknown, request: TextOutl
 
 export function textSnapshotToPolygon(snapshot: TextOutlineSnapshot, id: string, name: string,
   position: PointUm = {xUm:0,yUm:0}, rotationTenthsDeg = 0, process: ProcessSpec = DEFAULT_PROCESS): PolygonEntity {
-  return { id,name,kind:'polygon',visible:true,locked:false,position:{...position},rotationTenthsDeg,
+  return { id,name,kind:'polygon',position:{...position},rotationTenthsDeg,
     process:{...process},parts:structuredClone(snapshot.parts) };
 }

@@ -34,8 +34,6 @@
     {
       "id": "00000000-0000-0000-0000-000000000258",
       "name": "文字 · AB 8",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -2063,8 +2061,6 @@
     {
       "id": "00000000-0000-0000-0000-000000000259",
       "name": "文字 · 中文 回",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -2935,8 +2931,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025a",
       "name": "文字 · 한글",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -3733,8 +3727,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025b",
       "name": "文字 · Üé ß",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -6399,8 +6391,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025c",
       "name": "文字 · AV fi",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -7088,8 +7078,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025d",
       "name": "文字 · B8",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -9625,8 +9613,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025e",
       "name": "文字 · 2026",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -12816,8 +12802,6 @@
     {
       "id": "00000000-0000-0000-0000-00000000025f",
       "name": "文字 · 口回",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,

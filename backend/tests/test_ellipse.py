@@ -24,7 +24,8 @@ def digest(points):
 @pytest.mark.parametrize('sample', SAMPLES, ids=lambda sample: str(sample['sides']))
 def test_local_and_world_sampling_matches_shared_contract(sample):
     data = {key: value for key,value in sample.items() if not key.endswith('Sha256')}
-    entity = EllipseEntity.model_validate({**payload()['entities'][0], **data, 'center':{'xUm':0,'yUm':0}})
+    base = {key: value for key, value in payload()['entities'][0].items() if key not in ('visible', 'locked')}
+    entity = EllipseEntity.model_validate({**base, **data, 'center':{'xUm':0,'yUm':0}})
     polygon = ellipse_to_polygon(entity)
     points = polygon.parts[0].outer_ring
     assert digest(points) == sample['localSha256']

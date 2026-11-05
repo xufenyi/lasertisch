@@ -6,7 +6,7 @@ import type { PolygonEntity } from '../domain/model';
 import { isEntityInWorkArea } from '../domain/geometry';
 import { isValidPolygon, polygonBounds, polygonStatistics, resizePolygon } from '../domain/polygonGeometry';
 import { formatTenthsDegrees, formatUmAsMillimetres, parseDegreesToTenths, parseMillimetresToUm } from '../domain/units';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { commitInputOnEnter } from './inputCommit';
 
 function valuesFor(entity: PolygonEntity) {
@@ -23,6 +23,7 @@ export function PolygonGeometryForm({ entity }: { entity: PolygonEntity }) {
   const workArea = useEditorStore((state) => state.document.workArea);
   const replaceEntities = useEditorStore((state) => state.replaceEntities);
   const startPolygonEdit = useEditorStore((state) => state.startPolygonEdit);
+  const locked = useEditorStore((state) => workspaceStateFor(state, entity.id).locked);
   const [values, setValues] = useState(valuesFor(entity));
   const [error, setError] = useState(false);
   useEffect(() => { setValues(valuesFor(entity)); setError(false); }, [entity]);
@@ -48,12 +49,12 @@ export function PolygonGeometryForm({ entity }: { entity: PolygonEntity }) {
     <TextField size="small" fullWidth label={label} value={values[key]}
       onChange={(event) => setValues({ ...values, [key]: event.target.value })}
       onBlur={submit} onKeyDown={commitInputOnEnter}
-      error={error} slotProps={{ htmlInput: { inputMode: 'decimal' } }} />
+      error={error} disabled={locked} slotProps={{ htmlInput: { inputMode: 'decimal' } }} />
   );
   return (
     <Stack component="form" spacing={1.5} onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <Typography variant="subtitle2">{entity.name}</Typography>
-      <Button type="button" variant="outlined" disabled={entity.locked || !entity.visible}
+      <Button type="button" variant="outlined" disabled={locked}
         onClick={() => startPolygonEdit(entity.id)}>{t('polygon.editVertices')}</Button>
       {error && <Alert severity="error">{t('error.invalidPolygon')}</Alert>}
       {field('x', `${t('property.positionX')} (mm)`)}

@@ -4,6 +4,7 @@ import {
   createEntityId,
   type EditableEntity,
   type EntityId,
+  type EntityWorkspaceState,
   type PointUm,
   type RectangleEntity,
   type WorkAreaSettings,
@@ -13,11 +14,14 @@ import { isValidPolygon, polygonRings, polygonWorldParts } from './polygonGeomet
 export interface EntityClipboard {
   entities: EditableEntity[];
   processingOrder: EntityId[];
+  sourceDocumentId: string;
+  workspaceStates: Record<EntityId, EntityWorkspaceState>;
 }
 
 export interface PlacementClones {
   entities: EditableEntity[];
   processingOrder: EntityId[];
+  workspaceStates: Record<EntityId, EntityWorkspaceState>;
 }
 
 export interface WorldBounds {
@@ -164,5 +168,9 @@ export function cloneClipboardForPlacement(clipboard: EntityClipboard): Placemen
   if (processingOrder.length !== entities.length || new Set(processingOrder).size !== entities.length) {
     return null;
   }
-  return { entities, processingOrder };
+  const workspaceStates = Object.fromEntries([...idMap].map(([sourceId, id]) => [
+    id,
+    { ...(clipboard.workspaceStates[sourceId] ?? { visible: true, locked: false }) },
+  ]));
+  return { entities, processingOrder, workspaceStates };
 }

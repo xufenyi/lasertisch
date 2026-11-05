@@ -27,10 +27,19 @@ export interface ProcessSpec {
 interface EntityBase {
   id: EntityId;
   name: string;
-  visible: boolean;
-  locked: boolean;
   process: ProcessSpec;
 }
+
+/** View and edit protection for one entity in the current editor workspace only. */
+export interface EntityWorkspaceState {
+  visible: boolean;
+  locked: boolean;
+}
+
+export const DEFAULT_ENTITY_WORKSPACE_STATE: Readonly<EntityWorkspaceState> = Object.freeze({
+  visible: true,
+  locked: false,
+});
 
 export interface RectangleEntity extends EntityBase {
   kind: 'rectangle';

@@ -6,12 +6,13 @@ import { shortEdgeStatistics } from '../domain/textGeometry';
 import { formatTenthsDegrees,formatUmAsMillimetres,parseDegreesToTenths,parseMillimetresToUm } from '../domain/units';
 import { isEntityInWorkArea } from '../domain/geometry';
 import { isValidPolygon } from '../domain/polygonGeometry';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { commitInputOnEnter } from './inputCommit';
 
 function valuesFor(entity:TextEntity) {return {x:formatUmAsMillimetres(entity.position.xUm),y:formatUmAsMillimetres(entity.position.yUm),angle:formatTenthsDegrees(entity.rotationTenthsDeg)};}
 export function TextGeometryForm({entity}:{entity:TextEntity}) {
   const {t}=useTranslation();const [values,setValues]=useState(valuesFor(entity));const [error,setError]=useState(false);
+  const locked=useEditorStore(state=>workspaceStateFor(state,entity.id).locked);
   useEffect(()=>{setValues(valuesFor(entity));setError(false);},[entity]);
   const stats=shortEdgeStatistics(entity,entity.text.shortSegmentTargetUm);
   const submit=()=>{
@@ -26,14 +27,14 @@ export function TextGeometryForm({entity}:{entity:TextEntity}) {
     <Typography sx={{overflowWrap:'anywhere'}}>{entity.text.content}</Typography>
     <Typography variant="body2">{entity.text.font.family} · {entity.text.font.style}</Typography>
     <Typography variant="body2">{t('text.parameters',{size:formatUmAsMillimetres(entity.text.fontSizeUm),tolerance:formatUmAsMillimetres(entity.text.curveToleranceUm),target:formatUmAsMillimetres(entity.text.shortSegmentTargetUm)})}</Typography>
-    <Button disabled={entity.locked || !entity.visible} onClick={()=>useEditorStore.getState().beginText(entity.position,entity.id)}>{t('text.edit')}</Button>
+    <Button disabled={locked} onClick={()=>useEditorStore.getState().beginText(entity.position,entity.id)}>{t('text.edit')}</Button>
     {(['x','y','angle'] as const).map(key=><TextField key={key} size="small" label={`${t(key==='angle' ? 'property.angle' : key==='x' ? 'property.positionX' : 'property.positionY')} (${key==='angle' ? '°' : 'mm'})`}
-      value={values[key]} onChange={e=>setValues({...values,[key]:e.target.value})} disabled={entity.locked}
+      value={values[key]} onChange={e=>setValues({...values,[key]:e.target.value})} disabled={locked}
       slotProps={{htmlInput:{inputMode:'decimal'}}} onBlur={submit} onKeyDown={commitInputOnEnter} />)}
     {error && <Alert severity="error">{t('text.invalidPlacement')}</Alert>}
     <Typography variant="body2">{t('text.statistics',{count:stats.vertices,minimum:(stats.minimumUm/1000).toFixed(6),remaining:stats.shortEdges.length})}</Typography>
     <Typography variant="caption">{t('text.transformHint')}</Typography>
-    <Button disabled={entity.locked || !entity.visible} variant="outlined" onClick={()=>useEditorStore.getState().convertTextToPolygon(entity.id)}>{t('text.convert')}</Button>
+    <Button disabled={locked} variant="outlined" onClick={()=>useEditorStore.getState().convertTextToPolygon(entity.id)}>{t('text.convert')}</Button>
     <Typography variant="caption">{t('text.convertHint')}</Typography>
   </Stack>;
 }

@@ -140,8 +140,6 @@ function entity(value: unknown, index: number, version: number): EditableEntity 
   const base = {
     id: uuid(source.id, `entities[${index}].id`),
     name: text(source.name, `entities[${index}].name`),
-    visible: booleanValue(source.visible, `entities[${index}].visible`),
-    locked: booleanValue(source.locked, `entities[${index}].locked`),
     process: processSpec(source.process, `entities[${index}].process`),
   };
   if (source.kind === 'rectangle') {
@@ -266,7 +264,14 @@ export function parseProjectDocument(sourceText: string): EditorDocument {
 }
 
 export function serializeProjectDocument(document: EditorDocument): string {
-  return `${JSON.stringify(document, null, 2)}\n`;
+  // Discard legacy runtime flags even if an older caller supplied them.
+  const entities = document.entities.map((entity) => {
+    const copy = { ...entity } as EditableEntity & { visible?: unknown; locked?: unknown };
+    delete copy.visible;
+    delete copy.locked;
+    return copy;
+  });
+  return `${JSON.stringify({ ...document, entities }, null, 2)}\n`;
 }
 
 export function projectFilename(projectName: string): string {

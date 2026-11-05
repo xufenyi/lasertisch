@@ -35,8 +35,6 @@
       "id": "00000000-0000-4000-8000-000000000010",
       "name": "普通多边形",
       "kind": "polygon",
-      "visible": true,
-      "locked": false,
       "position": {
         "xUm": -45000,
         "yUm": 40000
@@ -81,8 +79,6 @@
       "id": "00000000-0000-4000-8000-000000000011",
       "name": "凹多边形",
       "kind": "polygon",
-      "visible": true,
-      "locked": false,
       "position": {
         "xUm": 35000,
         "yUm": 40000
@@ -131,8 +127,6 @@
       "id": "00000000-0000-4000-8000-000000000012",
       "name": "带孔多边形",
       "kind": "polygon",
-      "visible": true,
-      "locked": false,
       "position": {
         "xUm": -45000,
         "yUm": -35000
@@ -192,8 +186,6 @@
       "id": "00000000-0000-4000-8000-000000000013",
       "name": "两个分离部分",
       "kind": "polygon",
-      "visible": true,
-      "locked": false,
       "position": {
         "xUm": 35000,
         "yUm": -35000

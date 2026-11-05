@@ -23,16 +23,6 @@
           "title": "Name",
           "type": "string"
         },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
-        },
         "process": {
           "$ref": "#/$defs/ProcessSpec"
         },
@@ -217,16 +207,6 @@
           "title": "Name",
           "type": "string"
         },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
-        },
         "process": {
           "$ref": "#/$defs/ProcessSpec"
         },
@@ -285,16 +265,6 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
-        },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
         },
         "process": {
           "$ref": "#/$defs/ProcessSpec"
@@ -420,16 +390,6 @@
           "title": "Name",
           "type": "string"
         },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
-        },
         "process": {
           "$ref": "#/$defs/ProcessSpec"
         },
@@ -486,16 +446,6 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
-        },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
         },
         "process": {
           "$ref": "#/$defs/ProcessSpec"

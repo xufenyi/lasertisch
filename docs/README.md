@@ -180,5 +180,4 @@ Linux / macOS：
 | [文字与字体管线](text-pipeline.md) | 字体身份、轮廓转换、短线段、快照与编辑会话 |
 | [开发协作](development.md) | 开发者与 AI 助手的接手流程、契约同步和仓库约定 |
 | [测试与验收](testing.md) | 自动检查、样例用途、交互回归及发行检查 |
-| [Python 包说明](../backend/README.md) | 后端包的范围与入口 |
 | [使用指南](user-guide.md) | 面向用户的操作说明与快捷键 |

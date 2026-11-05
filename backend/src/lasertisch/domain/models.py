@@ -85,8 +85,6 @@ class GlobalSettings(ContractModel):
 class EntityBase(ContractModel):
     id: UUID
     name: str = Field(min_length=1, max_length=200)
-    visible: bool = True
-    locked: bool = False
     process: ProcessSpec = Field(default_factory=ProcessSpec)
 
 
@@ -211,14 +209,21 @@ class ProjectDocument(ContractModel):
         version = value.get("schemaVersion", value.get("schema_version", 2))
         if type(version) is not int:
             raise ValueError("schema version must be an integer")
-        if version != 1:
+        if version not in (1, 2):
             return value
         migrated = deepcopy(value)
-        key = "schemaVersion" if "schemaVersion" in migrated else "schema_version"
-        migrated[key] = 2
         entities = migrated.get("entities", [])
         if not isinstance(entities, list):
             return migrated
+        for entity in entities:
+            if isinstance(entity, dict):
+                # These were persisted by older builds but are now workspace-only.
+                entity.pop("visible", None)
+                entity.pop("locked", None)
+        if version != 1:
+            return migrated
+        key = "schemaVersion" if "schemaVersion" in migrated else "schema_version"
+        migrated[key] = 2
         for index, entity in enumerate(entities):
             if isinstance(entity, dict) and entity.get("kind") in {"ellipse", "text"}:
                 raise ValueError("ellipse and text require project version 2")
@@ -336,7 +341,7 @@ def ellipse_to_polygon(entity: EllipseEntity) -> PolygonEntity:
             y_um=math.floor(entity.height_um / 2 * math.sin(angle) + 0.5 + 1e-7),
         ))
     return PolygonEntity(
-        id=entity.id, name=entity.name, visible=entity.visible, locked=entity.locked,
+        id=entity.id, name=entity.name,
         process=entity.process, position=entity.center,
         rotation_tenths_deg=entity.rotation_tenths_deg,
         parts=[PolygonPart(outer_ring=points)],

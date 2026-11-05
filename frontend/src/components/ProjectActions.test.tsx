@@ -46,7 +46,7 @@ describe('project toolbar shortcuts',()=>{
     expect(container.querySelectorAll('[role=separator]')).toHaveLength(3);
   });
   it('enables copy, paste and duplicate from editor state and advertises their shortcuts',()=>{
-    const line:LineEntity={id:'00000000-0000-0000-0000-000000000111',kind:'line',name:'Line',visible:true,locked:false,
+    const line:LineEntity={id:'00000000-0000-0000-0000-000000000111',kind:'line',name:'Line',
       process:DEFAULT_PROCESS,start:{xUm:0,yUm:0},end:{xUm:1000,yUm:0}};
     render(<ProjectActions />);
     expect((screen.getByRole('button',{name:'复制'}) as HTMLButtonElement).disabled).toBe(true);

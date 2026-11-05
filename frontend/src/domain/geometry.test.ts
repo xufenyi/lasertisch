@@ -22,8 +22,6 @@ const base: RectangleEntity = {
   id: 'rectangle',
   kind: 'rectangle',
   name: 'Rectangle',
-  visible: true,
-  locked: false,
   process: DEFAULT_PROCESS,
   center: { xUm: 0, yUm: 0 },
   widthUm: 20_000,

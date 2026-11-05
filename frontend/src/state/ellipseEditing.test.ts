@@ -39,7 +39,7 @@ describe('ellipse document edits', () => {
   });
   it('does not convert a locked ellipse', () => {
     const entity = store().document.entities[0] as EllipseEntity;
-    store().replaceEntities([{...entity,locked:true}]);
+    store().toggleEntityLocked(entity.id);
     const original = store().document, history = store().undoStack.length;
     expect(store().convertEllipseToPolygon(entity.id)).toBe(false);
     expect(store().document).toBe(original); expect(store().undoStack).toHaveLength(history);

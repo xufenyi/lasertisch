@@ -32,9 +32,6 @@ def boolean_document(
         raise GeometryContractError("boolean.operand_not_found")
     if isinstance(a, LineEntity) or isinstance(b, LineEntity):
         raise GeometryContractError("boolean.closed_shapes_required")
-    if a.locked or b.locked or not a.visible or not b.visible:
-        raise GeometryContractError("boolean.operands_unavailable")
-
     operations = {BooleanOperation.UNION: union, BooleanOperation.INTERSECTION: intersection,
                   BooleanOperation.DIFFERENCE: difference}
     geometry = operations[operation](closed_entity_to_geometry(a), closed_entity_to_geometry(b), grid_size=GRID_SIZE_MM)

@@ -101,7 +101,7 @@ describe('boolean preview and application panel', () => {
   });
   it('disables invalid selections containing a line or more than two shapes', () => {
     const document=booleanDocument(), a=document.entities[0];
-    const line={id:'00000000-0000-4000-8000-000000000999',name:'Line',kind:'line' as const,visible:true,locked:false,
+    const line={id:'00000000-0000-4000-8000-000000000999',name:'Line',kind:'line' as const,
       process:{...a.process,mode:'contour' as const},start:{xUm:0,yUm:0},end:{xUm:1000,yUm:0}};
     document.entities.push(line);document.processingOrder.push(line.id);
     store().loadDocument(document);store().setSelection([a.id,line.id]);render(<PropertiesPanel />);

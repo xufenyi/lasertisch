@@ -7,8 +7,6 @@
     "result": {
       "id": "d1ac9454-9dbd-4657-a147-f0d39db9646d",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -72,8 +70,6 @@
     "result": {
       "id": "af75d40c-e1e5-43e4-ab07-fbe1b9257f94",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -121,8 +117,6 @@
     "result": {
       "id": "79fe1613-90e6-4dd5-b866-1913715322ce",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -178,8 +172,6 @@
     "result": {
       "id": "f6eb18a9-7bd7-48f4-9ccc-3c72112d5a91",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -246,8 +238,6 @@
     "result": {
       "id": "d86a7bf4-a689-4c57-99a8-c5a43b4f7fc8",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,
@@ -316,8 +306,6 @@
     "result": {
       "id": "59a9e505-68f0-4e29-994b-7e89833c6c5b",
       "name": "Boolean result",
-      "visible": true,
-      "locked": false,
       "process": {
         "mode": "fill_then_contour",
         "markSpeedUmPerSec": 900000,

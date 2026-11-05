@@ -10,8 +10,6 @@ const line: LineEntity = {
   id: 'line-1',
   kind: 'line',
   name: 'Line 1',
-  visible: true,
-  locked: false,
   process: DEFAULT_PROCESS,
   start: { xUm: 0, yUm: 0 },
   end: { xUm: 1_000, yUm: 0 },
@@ -22,6 +20,7 @@ beforeEach(() => {
   useEditorStore.setState({
     document,
     documentRevision: 0,
+    entityWorkspaceStates: {},
     selectionIds: [],
     transientEntities: {},
     clipboard: null,
@@ -97,6 +96,44 @@ describe('canonical editor store', () => {
     expect(isValidEntityName('')).toBe(false);
   });
 
+  it('keeps visibility and locking workspace-only and outside document history', () => {
+    useEditorStore.getState().addEntity(line);
+    useEditorStore.getState().markSaved();
+    const document = useEditorStore.getState().document;
+    const historyLength = useEditorStore.getState().undoStack.length;
+
+    useEditorStore.getState().toggleEntityVisibility(line.id);
+    useEditorStore.getState().toggleEntityLocked(line.id);
+    const state = useEditorStore.getState();
+    expect(state.document).toBe(document);
+    expect(state.entityWorkspaceStates[line.id]).toEqual({ visible: false, locked: true });
+    expect(state.undoStack).toHaveLength(historyLength);
+    expect(state.isDirty).toBe(false);
+    expect(serializeProjectDocument(state.document)).not.toContain('"locked"');
+
+    state.newProject();
+    expect(useEditorStore.getState().entityWorkspaceStates).toEqual({});
+  });
+
+  it('blocks content changes for locked objects while allowing rename and reordering', () => {
+    const second = { ...line, id: 'line-2', name: 'Line 2' };
+    useEditorStore.getState().addEntity(line);
+    useEditorStore.getState().addEntity(second);
+    useEditorStore.getState().setSelection([line.id]);
+    useEditorStore.getState().toggleEntityLocked(line.id);
+    const document = useEditorStore.getState().document;
+
+    useEditorStore.getState().replaceEntities([{ ...line, end: { xUm: 5_000, yUm: 0 } }]);
+    expect(useEditorStore.getState().updateSelectedProcess({ markSpeedUmPerSec: 123_000 })).toBe(false);
+    useEditorStore.getState().deleteSelected();
+    expect(useEditorStore.getState().document).toBe(document);
+    expect(useEditorStore.getState().status).toBe('error.entityLocked');
+
+    expect(useEditorStore.getState().renameEntity(line.id, 'Protected')).toBe(true);
+    useEditorStore.getState().moveProcessingOrder(line.id, 1);
+    expect(useEditorStore.getState().document.processingOrder).toEqual([second.id, line.id]);
+  });
+
   it('undoes and redoes one committed operation', () => {
     useEditorStore.getState().addEntity(line);
     expect(useEditorStore.getState().undoStack).toHaveLength(1);
@@ -121,13 +158,21 @@ describe('canonical editor store', () => {
       .toEqual([123_000, 123_000]);
   });
 
-  it('moves processing order without changing geometry order', () => {
+  it('moves processing order to any destination as one undoable change', () => {
     const second = { ...line, id: 'line-2', name: 'Line 2' };
+    const third = { ...line, id: 'line-3', name: 'Line 3' };
     useEditorStore.getState().addEntity(line);
     useEditorStore.getState().addEntity(second);
-    useEditorStore.getState().moveProcessingOrder(second.id, -1);
-    expect(useEditorStore.getState().document.processingOrder).toEqual([second.id, line.id]);
-    expect(useEditorStore.getState().document.entities.map((entity) => entity.id)).toEqual([line.id, second.id]);
+    useEditorStore.getState().addEntity(third);
+    const historyLength = useEditorStore.getState().undoStack.length;
+    useEditorStore.getState().moveProcessingOrder(third.id, 0);
+    expect(useEditorStore.getState().document.processingOrder).toEqual([third.id, line.id, second.id]);
+    expect(useEditorStore.getState().document.entities.map((entity) => entity.id)).toEqual([line.id, second.id, third.id]);
+    expect(useEditorStore.getState().undoStack).toHaveLength(historyLength + 1);
+    useEditorStore.getState().undo();
+    expect(useEditorStore.getState().document.processingOrder).toEqual([line.id, second.id, third.id]);
+    useEditorStore.getState().redo();
+    expect(useEditorStore.getState().document.processingOrder).toEqual([third.id, line.id, second.id]);
   });
 
   it('commits one polygon drag, undoes it, and retains the new shape on save', () => {
@@ -163,6 +208,8 @@ describe('canonical editor store', () => {
     const original = useEditorStore.getState().document;
     const selected = [original.entities[0].id, original.entities[2].id];
     useEditorStore.getState().setSelection(selected);
+    useEditorStore.getState().toggleEntityVisibility(selected[0]);
+    useEditorStore.getState().toggleEntityLocked(selected[1]);
     expect(useEditorStore.getState().copySelected()).toBe(true);
     expect(useEditorStore.getState().document).toBe(original);
     expect(useEditorStore.getState().undoStack).toHaveLength(0);
@@ -172,6 +219,9 @@ describe('canonical editor store', () => {
     expect(useEditorStore.getState().beginPastePlacement()).toBe(true);
     expect(useEditorStore.getState().movePlacement({ xUm: 0, yUm: 0 })).toBe(true);
     const candidates = useEditorStore.getState().placementSession!.candidates;
+    const candidateStates = useEditorStore.getState().placementSession!.workspaceStates;
+    expect(candidateStates[candidates[0].id]).toEqual({ visible: false, locked: false });
+    expect(candidateStates[candidates[1].id]).toEqual({ visible: true, locked: true });
     expect(candidates.map((entity) => entity.name)).toEqual([
       original.entities[0].name,
       original.entities[2].name,
@@ -181,6 +231,8 @@ describe('canonical editor store', () => {
     const state = useEditorStore.getState();
     expect(state.document.entities).toHaveLength(original.entities.length + 2);
     expect(state.selectionIds).toEqual(candidates.map((entity) => entity.id));
+    expect(state.entityWorkspaceStates[candidates[0].id]).toEqual({ visible: false, locked: false });
+    expect(state.entityWorkspaceStates[candidates[1].id]).toEqual({ visible: true, locked: true });
     const idMap = new Map(selected.map((id, index) => [id, candidates[index].id]));
     expect(state.document.processingOrder.slice(-2)).toEqual(
       original.processingOrder.filter((id) => selected.includes(id)).map((id) => idMap.get(id)),
@@ -206,6 +258,17 @@ describe('canonical editor store', () => {
     expect(useEditorStore.getState().document).toBe(original);
     expect(useEditorStore.getState().undoStack).toHaveLength(2);
     expect(useEditorStore.getState().selectionIds).toEqual([second.id]);
+  });
+
+  it('resets pasted workspace state when the clipboard crosses projects', () => {
+    useEditorStore.getState().addEntity(line);
+    useEditorStore.getState().toggleEntityVisibility(line.id);
+    useEditorStore.getState().toggleEntityLocked(line.id);
+    useEditorStore.getState().copySelected();
+    useEditorStore.getState().newProject();
+    expect(useEditorStore.getState().beginPastePlacement()).toBe(true);
+    const session = useEditorStore.getState().placementSession!;
+    expect(session.workspaceStates[session.candidates[0].id]).toEqual({ visible: true, locked: false });
   });
 
   it('keeps an out-of-bounds placement pending and rejects a group too large for a new work area', () => {

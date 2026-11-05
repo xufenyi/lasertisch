@@ -17,13 +17,13 @@ const polygonDocument = parseProjectDocument(JSON.stringify(polygonFixture));
 const workArea = polygonDocument.workArea;
 const rectangle: RectangleEntity = {
   id: '00000000-0000-0000-0000-000000000101', kind: 'rectangle', name: 'Rectangle',
-  visible: true, locked: false, process: polygonDocument.defaultProcess,
+  process: polygonDocument.defaultProcess,
   center: { xUm: 1_000, yUm: 2_000 }, widthUm: 10_000, heightUm: 8_000,
   rotationTenthsDeg: 300,
 };
 const line: LineEntity = {
   id: '00000000-0000-0000-0000-000000000102', kind: 'line', name: 'Line',
-  visible: true, locked: false, process: { ...polygonDocument.defaultProcess, mode: 'contour' },
+  process: { ...polygonDocument.defaultProcess, mode: 'contour' },
   start: { xUm: -5_000, yUm: 0 }, end: { xUm: 5_000, yUm: 0 },
 };
 
@@ -59,12 +59,21 @@ describe('entity placement geometry', () => {
   });
 
   it('creates independent IDs while preserving entity and processing order', () => {
-    const clipboard = { entities: [rectangle, line], processingOrder: [line.id, rectangle.id] };
+    const clipboard = {
+      entities: [rectangle, line],
+      processingOrder: [line.id, rectangle.id],
+      sourceDocumentId: 'source',
+      workspaceStates: {
+        [rectangle.id]: { visible: false, locked: true },
+        [line.id]: { visible: true, locked: false },
+      },
+    };
     const clones = cloneClipboardForPlacement(clipboard)!;
     expect(clones.entities.map((entity) => entity.kind)).toEqual(['rectangle', 'line']);
     expect(clones.entities.map((entity) => entity.id)).not.toContain(rectangle.id);
     expect(clones.entities.map((entity) => entity.id)).not.toContain(line.id);
     expect(clones.processingOrder).toEqual([clones.entities[1].id, clones.entities[0].id]);
+    expect(clones.workspaceStates[clones.entities[0].id]).toEqual({ visible: false, locked: true });
     clones.entities[0].name = 'Changed';
     expect(rectangle.name).toBe('Rectangle');
   });

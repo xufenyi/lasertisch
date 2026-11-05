@@ -32,13 +32,14 @@ import {
   type EditableEntity,
   type EllipseEntity,
   type EntityId,
+  type EntityWorkspaceState,
   type PointUm,
   type PolygonEntity,
   type ProcessSpec,
   type Tool,
   type WorkAreaSettings,
 } from '../domain/model';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { usePlanningStore } from '../planning/planningStore';
 import {
   createReferenceObjects,
@@ -110,7 +111,8 @@ function fitWorkArea(canvas: Canvas, workArea: WorkAreaSettings): void {
 
 function applySelection(canvas: Canvas, registry: Map<EntityId, FabricObject>, ids: EntityId[]): void {
   canvas.discardActiveObject();
-  const objects = ids.map((id) => registry.get(id)).filter((item): item is FabricObject => Boolean(item));
+  const objects = ids.map((id) => registry.get(id)).filter((item): item is FabricObject =>
+    Boolean(item?.visible && item.selectable));
   if (objects.length === 1) canvas.setActiveObject(objects[0]);
   else if (objects.length > 1) {
     const selection = new ActiveSelection(objects, { canvas });
@@ -122,15 +124,16 @@ function applySelection(canvas: Canvas, registry: Map<EntityId, FabricObject>, i
 
 function configureGeometryInteraction(
   registry: Map<EntityId, FabricObject>,
-  entities: EditableEntity[],
+  workspaceStates: Record<EntityId, EntityWorkspaceState>,
   tool: Tool,
   editing = false,
 ): void {
   const selecting = tool === 'select' && !editing;
-  const lockedById = new Map(entities.map((entity) => [entity.id, entity.locked]));
   for (const [id, object] of registry) {
-    const interactive = selecting && !lockedById.get(id);
+    const workspaceState = workspaceStates[id] ?? { visible: true, locked: false };
+    const interactive = selecting && workspaceState.visible && !workspaceState.locked;
     object.set({
+      visible: workspaceState.visible,
       selectable: interactive,
       evented: interactive,
       hoverCursor: selecting ? 'move' : 'default',
@@ -144,7 +147,7 @@ function rebuildCanvas(
   registry: Map<EntityId, FabricObject>,
   suppressSelection: React.MutableRefObject<boolean>,
 ): void {
-  const { document, documentRevision, selectionIds, tool, polygonEdit, transientEntities, booleanPreview, textSession, textPreview, placementSession } = useEditorStore.getState();
+  const { document, documentRevision, entityWorkspaceStates, selectionIds, tool, polygonEdit, transientEntities, booleanPreview, textSession, textPreview, placementSession } = useEditorStore.getState();
   const preview = booleanPreview?.documentRevision === documentRevision ? booleanPreview : null;
   const viewport = [...canvas.viewportTransform] as [number, number, number, number, number, number];
   suppressSelection.current = true;
@@ -156,7 +159,8 @@ function rebuildCanvas(
   canvas.add(...createReferenceObjects(document.grid, document.workArea, zoom));
   for (const entity of document.entities) {
     const displayed = polygonEdit ? transientEntities[entity.id] ?? entity : entity;
-    const object = entityToFabricObject(displayed, document.workArea, zoom);
+    const object = entityToFabricObject(displayed, document.workArea, zoom,
+      workspaceStateFor({ entityWorkspaceStates }, entity.id));
     if (preview && (entity.id === preview.operandAId || entity.id === preview.operandBId)) object.opacity = 0.25;
     if(textPreview && entity.id===textSession?.entityId) object.opacity=0.2;
     registry.set(entity.id, object);
@@ -188,7 +192,7 @@ function rebuildCanvas(
     result.set({ fill: 'rgba(46, 125, 50, 0.25)', stroke: '#2e7d32', selectable: false, evented: false, excludeFromExport: true });
     canvas.add(result);
   }
-  configureGeometryInteraction(registry, document.entities, tool, Boolean(polygonEdit || preview || textSession || placementSession));
+  configureGeometryInteraction(registry, entityWorkspaceStates, tool, Boolean(polygonEdit || preview || textSession || placementSession));
   canvas.selection = tool === 'select' && !polygonEdit && !preview && !textSession && !placementSession;
   if (canvas.selection) applySelection(canvas, registry, selectionIds);
   else canvas.discardActiveObject();
@@ -214,7 +218,7 @@ function boxFromDrag(
   if (!widthUm || !heightUm) return null;
   const rectangle = {
     id: createEntityId(), kind: 'rectangle', name: `Rectangle ${sequence}`,
-    visible: true, locked: false, process: { ...defaultProcess },
+    process: { ...defaultProcess },
     center: { xUm: Math.round((start.xUm + end.xUm) / 2), yUm: Math.round((start.yUm + end.yUm) / 2) },
     widthUm, heightUm, rotationTenthsDeg: 0,
   } as const;
@@ -239,8 +243,6 @@ function lineFromDrag(
   ) return null;
   return {
     id: createEntityId(), kind: 'line', name: `Line ${sequence}`,
-    visible: true,
-    locked: false,
     process: {
       ...defaultProcess,
       mode: defaultProcess.mode === 'none' ? 'none' : 'contour',
@@ -287,7 +289,7 @@ function updatePreview(session: DrawSession, current: PointUm, workArea: WorkAre
     const widthUm = Math.abs(current.xUm - session.start.xUm), heightUm = Math.abs(current.yUm - session.start.yUm);
     if (!widthUm || !heightUm) { session.preview.visible = false; return; }
     const ellipse: EllipseEntity = {
-      id: 'preview', name: 'Preview', kind: 'ellipse', visible: true, locked: false,
+      id: 'preview', name: 'Preview', kind: 'ellipse',
       center: { xUm: Math.round((current.xUm + session.start.xUm) / 2), yUm: Math.round((current.yUm + session.start.yUm) / 2) },
       widthUm, heightUm, rotationTenthsDeg: 0, sides: DEFAULT_ELLIPSE_SIDES,
       process: useEditorStore.getState().document.defaultProcess,
@@ -394,6 +396,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
   const panSessionRef = useRef<PanSession | null>(null);
   const [canvas, setCanvas] = useState<Canvas | null>(null);
   const entities = useEditorStore((state) => state.document.entities);
+  const entityWorkspaceStates = useEditorStore((state) => state.entityWorkspaceStates);
   const grid = useEditorStore((state) => state.document.grid);
   const workArea = useEditorStore((state) => state.document.workArea);
   const selectionIds = useEditorStore((state) => state.selectionIds);
@@ -443,13 +446,17 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
         planningState.planRevision === editorState.documentRevision ? planningState.plan : null,
         editorState.document.workArea,
         planningState.previewVisible && !editorState.booleanPreview && !editorState.textSession && !editorState.placementSession,
+        new Set(editorState.document.entities
+          .filter((entity) => !workspaceStateFor(editorState, entity.id).visible)
+          .map((entity) => entity.id)),
       );
       const edit = editorState.polygonEdit;
       const entity = edit ? editorState.transientEntities[edit.entityId] ?? editorState.document.entities.find((item) => item.id === edit.entityId) : null;
       drawPolygonOverlay(instance, polygonOverlayRef.current, editorState.document.workArea,
         editorState.polygonDraft, polygonCursorRef.current, entity?.kind === 'polygon' ? entity : null,
         edit?.vertex ?? null, vertexDragRef.current?.invalidPoint ?? null);
-      const selectedText=editorState.textPreview ?? (!editorState.textSession && editorState.selectionIds.length===1
+      const selectedText=editorState.textPreview ?? (!editorState.textSession && editorState.selectionIds.length===1 &&
+        workspaceStateFor(editorState, editorState.selectionIds[0]).visible
         ? editorState.transientEntities[editorState.selectionIds[0]] ?? editorState.document.entities.find(e=>e.id===editorState.selectionIds[0]) : null);
       if(selectedText && selectedText.kind==='text' && polygonOverlayRef.current) {
         const ctx=polygonOverlayRef.current.getContext('2d');
@@ -782,7 +789,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     };
   }, [refresh]);
 
-  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, grid, textPreview, textSession, placementSession, refresh]);
+  useEffect(() => { if (canvas) refresh(canvas); }, [canvas, entities, entityWorkspaceStates, grid, textPreview, textSession, placementSession, refresh]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -813,7 +820,7 @@ export const CanvasSurface = forwardRef<CanvasSurfaceHandle>(function CanvasSurf
     refresh(canvas);
     const selecting = tool === 'select' && !state.polygonEdit && !state.booleanPreview && !state.textSession && !state.placementSession;
     canvas.selection = selecting;
-    configureGeometryInteraction(registryRef.current, state.document.entities, tool, Boolean(state.polygonEdit || state.booleanPreview || state.textSession || state.placementSession));
+    configureGeometryInteraction(registryRef.current, state.entityWorkspaceStates, tool, Boolean(state.polygonEdit || state.booleanPreview || state.textSession || state.placementSession));
     canvas.defaultCursor = state.placementSession ? state.placementSession.valid ? 'copy' : 'not-allowed'
       : tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair';
     if (selecting) {

@@ -11,7 +11,7 @@ import {
   parseDegreesToTenths,
   parseMillimetresToUm,
 } from '../domain/units';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { PolygonGeometryForm } from './PolygonGeometryForm';
 import { EllipseGeometryForm } from './EllipseGeometryForm';
 import { commitInputOnEnter } from './inputCommit';
@@ -64,6 +64,7 @@ function PrimitiveGeometryForm({ entity }: { entity: RectangleEntity | LineEntit
   const replaceEntities = useEditorStore((state) => state.replaceEntities);
   const setStatus = useEditorStore((state) => state.setStatus);
   const workArea = useEditorStore((state) => state.document.workArea);
+  const locked = useEditorStore((state) => workspaceStateFor(state, entity.id).locked);
   const {
     register,
     handleSubmit,
@@ -137,6 +138,7 @@ function PrimitiveGeometryForm({ entity }: { entity: RectangleEntity | LineEntit
       slotProps={{ htmlInput: { inputMode: 'decimal' } }}
       onKeyDown={commitInputOnEnter}
       fullWidth
+      disabled={locked}
     />
   );
 

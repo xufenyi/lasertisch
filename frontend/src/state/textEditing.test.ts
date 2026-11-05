@@ -45,7 +45,7 @@ describe('editable text history and storage',()=>{
     expect(store().setTextPreview({...original,position:{xUm:999999,yUm:0}},session.id)).toBe(false);
     store().updateProjectName('changed');expect(store().textSession).toBeNull();
     expect(store().setTextPreview(original,session.id)).toBe(false);expect(store().applyTextPreview(session.id)).toBe(false);
-    store().replaceEntities([{...text(),locked:true}]);store().beginText(original.position,original.id);
+    store().toggleEntityLocked(original.id);store().beginText(original.position,original.id);
     expect(store().textSession).toBeNull();
   });
   it('converts to a polygon reversibly and computes world short-edge statistics',()=>{

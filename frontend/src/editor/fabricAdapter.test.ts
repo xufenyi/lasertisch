@@ -20,7 +20,7 @@ describe('rectangle move projection', () => {
     const grid = { ...document.grid, spacingUm: 1_000 };
     const entity: RectangleEntity = {
       id: 'odd-rectangle', kind: 'rectangle', name: 'Odd rectangle',
-      visible: true, locked: false, process: DEFAULT_PROCESS,
+      process: DEFAULT_PROCESS,
       center: { xUm: 1_500, yUm: 2_500 }, widthUm: 3_000, heightUm: 5_000,
       rotationTenthsDeg: 0,
     };
@@ -33,6 +33,20 @@ describe('rectangle move projection', () => {
       .toEqual({ ...entity, center });
     expect(fabricObjectToEntity(object, entity, grid, workArea))
       .toEqual({ ...entity, center });
+  });
+
+  it('applies workspace visibility and locking without changing the entity', () => {
+    const document = createEmptyDocument();
+    const entity: RectangleEntity = {
+      id: 'workspace-rectangle', kind: 'rectangle', name: 'Workspace rectangle',
+      process: DEFAULT_PROCESS, center: { xUm: 0, yUm: 0 }, widthUm: 1_000, heightUm: 1_000,
+      rotationTenthsDeg: 0,
+    };
+    const object = entityToFabricObject(entity, document.workArea, 1, { visible: false, locked: true });
+    expect(object.visible).toBe(false);
+    expect(object.selectable).toBe(false);
+    expect(object.evented).toBe(false);
+    expect('visible' in entity).toBe(false);
   });
 });
 
@@ -120,7 +134,7 @@ describe('multi-selection move snapping', () => {
   it('keeps line movement on whole-grid snapping', () => {
     const { workArea } = createEmptyDocument();
     const generic = entityToFabricObject({
-      id: 'line', kind: 'line', name: 'Line', visible: true, locked: false,
+      id: 'line', kind: 'line', name: 'Line',
       process: DEFAULT_PROCESS, start: { xUm: 0, yUm: 0 }, end: { xUm: 1_000, yUm: 0 },
     }, workArea);
     expect(snapObjectCenterForMove(generic, { xUm: 2_620, yUm: -3_610 }, 1_000, workArea))

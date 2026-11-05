@@ -58,7 +58,7 @@ export function TextEditorPanel({session}: {session: TextSession}) {
       }
       const snapshot=result.snapshot;
       const entity:TextEntity={id:id.current,name:original?.name ?? `${t('tool.text')} ${useEditorStore.getState().document.entities.length+1}`,
-        kind:'text',visible:true,locked:false,process:{...(original?.process ?? useEditorStore.getState().document.defaultProcess)},
+        kind:'text',process:{...(original?.process ?? useEditorStore.getState().document.defaultProcess)},
         position,rotationTenthsDeg,parts:structuredClone(snapshot.parts),text:structuredClone(snapshot.source),
         generatorVersion:snapshot.generatorVersion,engineVersions:{...snapshot.engineVersions}};
       if(!useEditorStore.getState().setTextPreview(entity,session.id)) {setError(t('text.invalidPlacement'));return;}

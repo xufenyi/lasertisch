@@ -4,13 +4,14 @@ import { useTranslation } from 'react-i18next';
 import type { BooleanOperation } from '../domain/boolean';
 import { polygonStatistics } from '../domain/polygonGeometry';
 import { BooleanUnavailableError, requestBooleanOperation } from '../planning/booleanClient';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 
 export function BooleanOperationsPanel() {
   const { t } = useTranslation();
   const document = useEditorStore((state) => state.document);
   const revision = useEditorStore((state) => state.documentRevision);
   const selection = useEditorStore((state) => state.selectionIds);
+  const entityWorkspaceStates = useEditorStore((state) => state.entityWorkspaceStates);
   const preview = useEditorStore((state) => state.booleanPreview);
   const tool = useEditorStore((state) => state.tool);
   const editing = useEditorStore((state) => state.polygonEdit);
@@ -27,9 +28,12 @@ export function BooleanOperationsPanel() {
   const ids = swapped ? [...selection].reverse() : selection;
   const a = document.entities.find((entity) => entity.id === ids[0]);
   const b = document.entities.find((entity) => entity.id === ids[1]);
+  const aWorkspace = a ? workspaceStateFor({ entityWorkspaceStates }, a.id) : null;
+  const bWorkspace = b ? workspaceStateFor({ entityWorkspaceStates }, b.id) : null;
   const reason = selection.length !== 2 || !a || !b || a.id === b.id ? 'boolean.selectTwo'
     : a.kind === 'line' || b.kind === 'line' ? 'boolean.closedOnly'
-      : a.locked || b.locked || !a.visible || !b.visible ? 'boolean.unavailableOperands' : null;
+      : aWorkspace?.locked || bWorkspace?.locked || !aWorkspace?.visible || !bWorkspace?.visible
+        ? 'boolean.unavailableOperands' : null;
   const eligible = !reason && tool === 'select' && !editing && !transient;
   const differentProcess = a && b && JSON.stringify(a.process) !== JSON.stringify(b.process);
   const statistics = preview?.result ? polygonStatistics(preview.result) : null;
@@ -46,7 +50,8 @@ export function BooleanOperationsPanel() {
       pending.current++; controller.current?.abort();
       useEditorStore.getState().clearBooleanPreview();
     };
-  }, [revision, selectionKey, operation, swapped, tool, editing, transient]);
+  }, [revision, selectionKey, operation, swapped, tool, editing, transient, aWorkspace?.visible,
+    aWorkspace?.locked, bWorkspace?.visible, bWorkspace?.locked]);
 
   const calculate = async () => {
     if (!eligible || !a || !b) return;

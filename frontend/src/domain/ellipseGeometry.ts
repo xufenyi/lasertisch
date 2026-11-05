@@ -23,7 +23,7 @@ export function ellipseLocalRing(entity: EllipseEntity): PointUm[] {
 
 export function ellipseToPolygon(entity: EllipseEntity): PolygonEntity {
   return {
-    id: entity.id, name: entity.name, visible: entity.visible, locked: entity.locked, process: { ...entity.process },
+    id: entity.id, name: entity.name, process: { ...entity.process },
     kind: 'polygon', position: { ...entity.center }, rotationTenthsDeg: entity.rotationTenthsDeg,
     parts: [{ outerRing: ellipseLocalRing(entity), holes: [] }],
   };

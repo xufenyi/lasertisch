@@ -12,8 +12,10 @@ import {
 
 import {
   BASE_PIXELS_PER_MM,
+  DEFAULT_ENTITY_WORKSPACE_STATE,
   type EditableEntity,
   type EllipseEntity,
+  type EntityWorkspaceState,
   type GridSettings,
   type LineEntity,
   type PointUm,
@@ -206,6 +208,7 @@ export function entityToFabricObject(
   entity: EditableEntity,
   workArea: WorkAreaSettings,
   zoom = 1,
+  workspaceState: Readonly<EntityWorkspaceState> = DEFAULT_ENTITY_WORKSPACE_STATE,
 ): FabricObject {
   const object = entity.kind === 'rectangle'
     ? rectangleObject(entity, workArea, zoom)
@@ -214,9 +217,9 @@ export function entityToFabricObject(
       : entity.kind === 'ellipse'
         ? ellipseObject(entity, workArea, zoom)
         : lineObject(entity, workArea, zoom);
-  object.visible = entity.visible;
-  object.selectable = !entity.locked;
-  object.evented = !entity.locked;
+  object.visible = workspaceState.visible;
+  object.selectable = workspaceState.visible && !workspaceState.locked;
+  object.evented = workspaceState.visible && !workspaceState.locked;
   object.hoverCursor = 'move';
   object.moveCursor = 'move';
   return object;

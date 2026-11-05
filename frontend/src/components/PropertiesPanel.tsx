@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TextEditorPanel } from './TextEditorPanel';
 import {
   Box,
@@ -17,13 +17,16 @@ import {
   Typography,
 } from '@mui/material';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
-import ArrowDownwardRoundedIcon from '@mui/icons-material/ArrowDownwardRounded';
-import ArrowUpwardRoundedIcon from '@mui/icons-material/ArrowUpwardRounded';
+import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded';
+import LockRoundedIcon from '@mui/icons-material/LockRounded';
+import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
+import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded';
+import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded';
 import { useTranslation } from 'react-i18next';
 
 import { formatUmAsMillimetres, parseMillimetresToUm } from '../domain/units';
-import type { EditableEntity, EntityId, WorkAreaSettings } from '../domain/model';
-import { useEditorStore } from '../state/editorStore';
+import type { EditableEntity, EntityId, EntityWorkspaceState, WorkAreaSettings } from '../domain/model';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { GeometryForm } from './GeometryForm';
 import { PolygonVertexForm } from './PolygonVertexForm';
 import { ProcessForm } from './ProcessForm';
@@ -167,21 +170,33 @@ function GlobalSettingsFields() {
 
 function ObjectListItem({
   entity,
+  workspaceState,
   selected,
   onSelect,
   orderIndex,
-  orderLength,
-  onMove,
+  dragging,
+  dropSide,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   entity: EditableEntity;
+  workspaceState: Readonly<EntityWorkspaceState>;
   selected: boolean;
   onSelect: (event: React.MouseEvent) => void;
   orderIndex: number;
-  orderLength: number;
-  onMove: (direction: -1 | 1) => void;
+  dragging: boolean;
+  dropSide: 'before' | 'after' | null;
+  onDragStart: (event: React.DragEvent) => void;
+  onDragOver: (event: React.DragEvent, side: 'before' | 'after') => void;
+  onDrop: (event: React.DragEvent, side: 'before' | 'after') => void;
+  onDragEnd: () => void;
 }) {
   const { t } = useTranslation();
   const renameEntity = useEditorStore((state) => state.renameEntity);
+  const toggleVisibility = useEditorStore((state) => state.toggleEntityVisibility);
+  const toggleLocked = useEditorStore((state) => state.toggleEntityLocked);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(entity.name);
 
@@ -197,42 +212,63 @@ function ObjectListItem({
   return (
     <ListItem
       disablePadding
-      secondaryAction={(
-        <Stack direction="row" spacing={0}>
-          <Tooltip title={t('panel.moveEarlier')}>
-            <span><IconButton
-              size="small"
-              disabled={orderIndex === 0}
-              aria-label={t('panel.moveEarlier')}
-              onClick={(event) => { event.stopPropagation(); onMove(-1); }}
-            ><ArrowUpwardRoundedIcon fontSize="small" /></IconButton></span>
-          </Tooltip>
-          <Tooltip title={t('panel.moveLater')}>
-            <span><IconButton
-              size="small"
-              disabled={orderIndex === orderLength - 1}
-              aria-label={t('panel.moveLater')}
-              onClick={(event) => { event.stopPropagation(); onMove(1); }}
-            ><ArrowDownwardRoundedIcon fontSize="small" /></IconButton></span>
-          </Tooltip>
-          <Tooltip title={t('panel.rename')}>
-            <IconButton
-              size="small"
-              edge="end"
-              aria-label={t('panel.rename')}
-              onClick={(event) => {
-                event.stopPropagation();
-                setDraft(entity.name);
-                setEditing(true);
-              }}
-            >
-              <EditRoundedIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      )}
+      onDragOver={(event) => {
+        event.preventDefault();
+        const bounds = event.currentTarget.getBoundingClientRect();
+        onDragOver(event, event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after');
+      }}
+      onDrop={(event) => {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        onDrop(event, event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after');
+      }}
+      sx={{
+        opacity: dragging ? 0.45 : 1,
+        backgroundColor: selected ? 'rgba(22, 102, 167, 0.08)' : 'transparent',
+        borderTop: '2px solid',
+        borderBottom: '2px solid',
+        borderTopColor: dropSide === 'before' ? 'primary.main' : 'transparent',
+        borderBottomColor: dropSide === 'after' ? 'primary.main' : 'transparent',
+        transition: 'background-color 120ms ease',
+        '&:hover': {
+          backgroundColor: selected
+            ? 'rgba(22, 102, 167, 0.08)'
+            : 'rgba(0, 0, 0, 0.04)',
+        },
+      }}
     >
-      <ListItemButton component="div" selected={selected} onClick={onSelect} sx={{ pr: 14 }}>
+      <Tooltip title={t(workspaceState.visible ? 'panel.hide' : 'panel.show')}>
+        <IconButton
+          size="small"
+          aria-label={t(workspaceState.visible ? 'panel.hide' : 'panel.show')}
+          onClick={(event) => { event.stopPropagation(); toggleVisibility(entity.id); }}
+        >
+          {workspaceState.visible
+            ? <VisibilityRoundedIcon fontSize="small" />
+            : <VisibilityOffRoundedIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t(workspaceState.locked ? 'panel.unlock' : 'panel.lock')}>
+        <IconButton
+          size="small"
+          color={workspaceState.locked ? 'primary' : 'default'}
+          aria-label={t(workspaceState.locked ? 'panel.unlock' : 'panel.lock')}
+          onClick={(event) => { event.stopPropagation(); toggleLocked(entity.id); }}
+        >
+          {workspaceState.locked
+            ? <LockRoundedIcon fontSize="small" />
+            : <LockOpenRoundedIcon fontSize="small" />}
+        </IconButton>
+      </Tooltip>
+      <ListItemButton component="div" selected={selected} onClick={onSelect}
+        sx={{
+          minWidth: 0,
+          px: 0.75,
+          opacity: workspaceState.visible ? 1 : 0.58,
+          backgroundColor: 'transparent',
+          '&:hover, &.Mui-selected, &.Mui-selected:hover': {
+            backgroundColor: 'transparent',
+          },
+        }}>
         {editing ? (
           <TextField
             autoFocus
@@ -259,6 +295,32 @@ function ObjectListItem({
           />
         )}
       </ListItemButton>
+      <Tooltip title={t('panel.rename')}>
+        <IconButton
+          size="small"
+          aria-label={t('panel.rename')}
+          onClick={(event) => {
+            event.stopPropagation();
+            setDraft(entity.name);
+            setEditing(true);
+          }}
+        >
+          <EditRoundedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t('panel.reorder')}>
+        <IconButton
+          size="small"
+          draggable
+          aria-label={t('panel.reorder')}
+          onClick={(event) => event.stopPropagation()}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          sx={{ cursor: dragging ? 'grabbing' : 'grab' }}
+        >
+          <MenuRoundedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
     </ListItem>
   );
 }
@@ -268,6 +330,7 @@ export function PropertiesPanel() {
   const document = useEditorStore((state) => state.document);
   const transientEntities = useEditorStore((state) => state.transientEntities);
   const selectionIds = useEditorStore((state) => state.selectionIds);
+  const entityWorkspaceStates = useEditorStore((state) => state.entityWorkspaceStates);
   const polygonEdit = useEditorStore((state) => state.polygonEdit);
   const textSession = useEditorStore((state)=>state.textSession);
   const setSelection = useEditorStore((state) => state.setSelection);
@@ -276,6 +339,10 @@ export function PropertiesPanel() {
   const updateSelectedProcess = useEditorStore((state) => state.updateSelectedProcess);
   const updateDefaultProcess = useEditorStore((state) => state.updateDefaultProcess);
   const moveProcessingOrder = useEditorStore((state) => state.moveProcessingOrder);
+  const [draggingId, setDraggingId] = useState<EntityId | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: EntityId; side: 'before' | 'after' } | null>(null);
+  const draggingIdRef = useRef<EntityId | null>(null);
+  const dropTargetRef = useRef<{ id: EntityId; side: 'before' | 'after' } | null>(null);
   const selected = document.entities
     .filter((entity) => selectionIds.includes(entity.id))
     .map((entity) => transientEntities[entity.id] ?? entity);
@@ -283,6 +350,29 @@ export function PropertiesPanel() {
   const orderedEntities = document.processingOrder
     .map((id) => byId.get(id))
     .filter((entity): entity is EditableEntity => Boolean(entity));
+  const selectedLocked = selected.some((entity) =>
+    (entityWorkspaceStates[entity.id]?.locked ?? false));
+
+  const finishDrag = () => {
+    draggingIdRef.current = null;
+    dropTargetRef.current = null;
+    setDraggingId(null);
+    setDropTarget(null);
+  };
+
+  const dropProcessingOrder = (directTarget?: { id: EntityId; side: 'before' | 'after' }) => {
+    const dragged = draggingIdRef.current;
+    const target = directTarget ?? dropTargetRef.current;
+    if (!dragged || !target) { finishDrag(); return; }
+    const sourceIndex = document.processingOrder.indexOf(dragged);
+    const targetIndex = document.processingOrder.indexOf(target.id);
+    if (sourceIndex >= 0 && targetIndex >= 0) {
+      let destination = targetIndex + (target.side === 'after' ? 1 : 0);
+      if (sourceIndex < destination) destination -= 1;
+      moveProcessingOrder(dragged, destination);
+    }
+    finishDrag();
+  };
 
   if(textSession) return <Box className="properties-panel"><TextEditorPanel key={textSession.id} session={textSession} /></Box>;
   return (
@@ -300,6 +390,7 @@ export function PropertiesPanel() {
               processes={[selected[0].process]}
               supportsFill={selected[0].kind !== 'line'}
               onPatch={updateSelectedProcess}
+              disabled={selectedLocked}
             />
           </Stack>
         ) : selected.length > 1 ? (
@@ -311,8 +402,9 @@ export function PropertiesPanel() {
               processes={selected.map((entity) => entity.process)}
               supportsFill={selected.every((entity) => entity.kind !== 'line')}
               onPatch={updateSelectedProcess}
+              disabled={selectedLocked}
             />
-            <Button color="error" variant="outlined" onClick={deleteSelected}>
+            <Button color="error" variant="outlined" disabled={selectedLocked} onClick={deleteSelected}>
               {t('common.delete')}
             </Button>
           </Stack>
@@ -372,10 +464,31 @@ export function PropertiesPanel() {
           <ObjectListItem
             key={entity.id}
             entity={entity}
+            workspaceState={workspaceStateFor({ entityWorkspaceStates }, entity.id)}
             selected={selectionIds.includes(entity.id)}
             orderIndex={orderIndex}
-            orderLength={orderedEntities.length}
-            onMove={(direction) => moveProcessingOrder(entity.id, direction)}
+            dragging={draggingId === entity.id}
+            dropSide={dropTarget?.id === entity.id && draggingId !== entity.id ? dropTarget.side : null}
+            onDragStart={(event) => {
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', entity.id);
+              draggingIdRef.current = entity.id;
+              dropTargetRef.current = null;
+              setDraggingId(entity.id);
+              setDropTarget(null);
+            }}
+            onDragOver={(event, side) => {
+              if (!draggingIdRef.current) return;
+              event.dataTransfer.dropEffect = 'move';
+              const next = { id: entity.id, side };
+              dropTargetRef.current = next;
+              setDropTarget((current) => current?.id === next.id && current.side === next.side ? current : next);
+            }}
+            onDrop={(event, side) => {
+              event.preventDefault();
+              dropProcessingOrder({ id: entity.id, side });
+            }}
+            onDragEnd={finishDrag}
             onSelect={(event) => {
               if (event.ctrlKey || event.metaKey) {
                 setSelection(

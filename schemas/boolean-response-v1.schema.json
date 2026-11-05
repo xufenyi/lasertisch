@@ -80,16 +80,6 @@
           "title": "Name",
           "type": "string"
         },
-        "visible": {
-          "default": true,
-          "title": "Visible",
-          "type": "boolean"
-        },
-        "locked": {
-          "default": false,
-          "title": "Locked",
-          "type": "boolean"
-        },
         "process": {
           "$ref": "#/$defs/ProcessSpec"
         },

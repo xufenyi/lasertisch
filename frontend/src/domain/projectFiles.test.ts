@@ -34,6 +34,16 @@ describe('project files', () => {
     expect(parsed.entities[2]).toMatchObject({ kind: 'polygon', rotationTenthsDeg: 150 });
   });
 
+  it('accepts legacy entity view flags but never writes workspace state', () => {
+    const parsed = parseProjectDocument(JSON.stringify(polygonProject));
+    expect('visible' in parsed.entities[0]).toBe(false);
+    expect('locked' in parsed.entities[0]).toBe(false);
+    const saved = JSON.parse(serializeProjectDocument(parsed));
+    expect(saved.grid.visible).toBe(true);
+    expect(saved.entities.every((item: Record<string, unknown>) =>
+      !('visible' in item) && !('locked' in item))).toBe(true);
+  });
+
   it('migrates world-coordinate v1 polygons without changing their world vertices', () => {
     const legacy = { ...polygonProject, schemaVersion: 1, entities: polygonProject.entities.map((entity) => {
       const { position, rotationTenthsDeg, ...worldPolygon } = entity;
@@ -62,8 +72,6 @@ describe('project files', () => {
       id: '00000000-0000-4000-8000-000000000002',
       kind: 'line',
       name: 'Line',
-      visible: true,
-      locked: false,
       process: { ...source.defaultProcess },
       start: { xUm: 0, yUm: 0 },
       end: { xUm: 1_000, yUm: 0 },

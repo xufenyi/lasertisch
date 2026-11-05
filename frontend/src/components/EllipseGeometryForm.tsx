@@ -5,7 +5,7 @@ import type { EllipseEntity } from '../domain/model';
 import { isEntityInWorkArea } from '../domain/geometry';
 import { ellipseMinimumEdgeUm, isValidEllipse, MAX_ELLIPSE_SIDES, MIN_ELLIPSE_SIDES } from '../domain/ellipseGeometry';
 import { formatTenthsDegrees, formatUmAsMillimetres, parseDegreesToTenths, parseMillimetresToUm } from '../domain/units';
-import { useEditorStore } from '../state/editorStore';
+import { useEditorStore, workspaceStateFor } from '../state/editorStore';
 import { commitInputOnEnter } from './inputCommit';
 
 function valuesFor(entity: EllipseEntity) {
@@ -21,6 +21,7 @@ export function EllipseGeometryForm({ entity }: { entity: EllipseEntity }) {
   const workArea = useEditorStore((state) => state.document.workArea);
   const replaceEntities = useEditorStore((state) => state.replaceEntities);
   const convert = useEditorStore((state) => state.convertEllipseToPolygon);
+  const locked = useEditorStore((state) => workspaceStateFor(state, entity.id).locked);
   const [values, setValues] = useState(valuesFor(entity));
   const [error, setError] = useState(false);
   useEffect(() => { setValues(valuesFor(entity)); setError(false); }, [entity]);
@@ -40,6 +41,7 @@ export function EllipseGeometryForm({ entity }: { entity: EllipseEntity }) {
   const field = (key: keyof typeof values, label: string) => <TextField fullWidth size="small"
     label={label} value={values[key]} onChange={(event) => setValues({ ...values, [key]: event.target.value })}
     onBlur={submit} onKeyDown={commitInputOnEnter} error={error}
+    disabled={locked}
     slotProps={{ htmlInput: { inputMode: key === 'sides' ? 'numeric' : 'decimal' } }} />;
   return <Stack component="form" spacing={1.5} onSubmit={(event) => { event.preventDefault(); submit(); }}>
     <Typography variant="subtitle2">{entity.name}</Typography>
@@ -54,7 +56,7 @@ export function EllipseGeometryForm({ entity }: { entity: EllipseEntity }) {
       count: entity.sides, length: (minimumEdge / 1000).toLocaleString(undefined, { maximumFractionDigits: 6 }),
     })}</Typography>
     {minimumEdge < 100 && <Alert severity="warning">{t('ellipse.shortEdges')}</Alert>}
-    <Button type="button" variant="outlined" disabled={entity.locked || !entity.visible}
+    <Button type="button" variant="outlined" disabled={locked}
       onClick={() => convert(entity.id)}>{t('ellipse.convert')}</Button>
     <Typography variant="caption" color="text.secondary">{t('ellipse.convertHint')}</Typography>
     <Typography variant="caption" color="text.secondary">{t('common.autoSave')}</Typography>

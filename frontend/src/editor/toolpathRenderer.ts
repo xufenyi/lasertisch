@@ -108,12 +108,15 @@ export function drawToolpathPreview(
   plan: ToolpathPlan | null,
   workArea: WorkAreaSettings,
   visible: boolean,
+  hiddenEntityIds: ReadonlySet<string> = new Set(),
 ): void {
   if (!overlay) return;
   const context = prepareCanvas(overlay);
   if (!context || !visible || !plan) return;
   const viewport = fabricCanvas.viewportTransform;
-  const segments = flattenToolpathSegments(plan);
+  const visibleTasks = plan.tasks.filter((task) =>
+    !task.sourceEntityIds.some((id) => hiddenEntityIds.has(id)));
+  const segments = visibleTasks.flatMap((task) => task.segments).sort((a, b) => a.sequence - b.sequence);
   const travel = segments.filter((segment) => segment.kind === 'travel');
   const hatch = segments.filter((segment) => segment.kind === 'hatch');
   const contour = segments.filter((segment) => segment.kind === 'contour');
@@ -140,6 +143,7 @@ export function drawToolpathPreview(
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   plan.tasks.forEach((task, index) => {
+    if (task.sourceEntityIds.some((id) => hiddenEntityIds.has(id))) return;
     const firstMark = task.segments.find((segment) => segment.laser === 'on');
     if (!firstMark) return;
     const point = screenPoint(firstMark.start, workArea, viewport);

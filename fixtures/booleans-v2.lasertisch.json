@@ -35,8 +35,6 @@
       "id": "00000000-0000-4000-8000-000000000200",
       "kind": "rectangle",
       "name": "重叠 A",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": -45000,
         "yUm": 45000
@@ -56,8 +54,6 @@
       "id": "00000000-0000-4000-8000-000000000201",
       "kind": "rectangle",
       "name": "重叠 B",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": -25000,
         "yUm": 40000
@@ -77,8 +73,6 @@
       "id": "00000000-0000-4000-8000-000000000202",
       "kind": "rectangle",
       "name": "孔洞 外框",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": 40000,
         "yUm": 40000
@@ -98,8 +92,6 @@
       "id": "00000000-0000-4000-8000-000000000203",
       "kind": "rectangle",
       "name": "孔洞 内框",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": 40000,
         "yUm": 40000
@@ -119,8 +111,6 @@
       "id": "00000000-0000-4000-8000-000000000204",
       "kind": "rectangle",
       "name": "分离 A",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": -40000,
         "yUm": -35000
@@ -140,8 +130,6 @@
       "id": "00000000-0000-4000-8000-000000000205",
       "kind": "rectangle",
       "name": "分离 B",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": -40000,
         "yUm": -35000
@@ -161,8 +149,6 @@
       "id": "00000000-0000-4000-8000-000000000206",
       "kind": "ellipse",
       "name": "椭圆 A",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": 45000,
         "yUm": -35000
@@ -183,8 +169,6 @@
       "id": "00000000-0000-4000-8000-000000000207",
       "kind": "rectangle",
       "name": "矩形 B",
-      "visible": true,
-      "locked": false,
       "center": {
         "xUm": 45000,
         "yUm": -35000

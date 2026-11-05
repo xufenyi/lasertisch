@@ -60,7 +60,7 @@ export function polygonWorldToLocal(entity: PolygonEntity, point: PointUm): Poin
 export function polygonFromPoints(points: PointUm[], process: ProcessSpec, name: string, workArea: WorkAreaSettings): PolygonEntity | null {
   if (points.length < 3) return null;
   const entity: PolygonEntity = {
-    id: createEntityId(), kind: 'polygon', name, visible: true, locked: false,
+    id: createEntityId(), kind: 'polygon', name,
     process: { ...process }, position: { xUm: 0, yUm: 0 }, rotationTenthsDeg: 0,
     parts: [{ outerRing: points, holes: [] }],
   };
@@ -73,6 +73,6 @@ export function polygonFromPoints(points: PointUm[], process: ProcessSpec, name:
 export function reconcilePolygonEdit(edit: PolygonEditState | null, entities: EditableEntity[]): PolygonEditState | null {
   if (!edit) return null;
   const entity = entities.find((item) => item.id === edit.entityId);
-  if (!entity || entity.kind !== 'polygon' || entity.locked || !entity.visible) return null;
+  if (!entity || entity.kind !== 'polygon') return null;
   return polygonRing(entity, edit.vertex) ? edit : { ...edit, vertex: { partIndex: 0, ringIndex: 0, vertexIndex: 0 } };
 }

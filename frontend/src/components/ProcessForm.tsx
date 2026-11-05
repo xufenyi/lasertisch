@@ -16,6 +16,7 @@ interface ProcessFormProps {
   supportsFill: boolean;
   onPatch: (patch: Partial<ProcessSpec>) => boolean;
   title: string;
+  disabled?: boolean;
 }
 
 function commonValue<K extends keyof ProcessSpec>(processes: ProcessSpec[], key: K): ProcessSpec[K] | null {
@@ -33,7 +34,7 @@ function modeTranslationKey(mode: ProcessMode): string {
   }[mode];
 }
 
-export function ProcessForm({ processes, supportsFill, onPatch, title }: ProcessFormProps) {
+export function ProcessForm({ processes, supportsFill, onPatch, title, disabled = false }: ProcessFormProps) {
   const { t } = useTranslation();
   const setStatus = useEditorStore((state) => state.setStatus);
   const mode = commonValue(processes, 'mode');
@@ -61,6 +62,7 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
       defaultValue={value === null ? '' : format(value)}
       placeholder={value === null ? t('common.mixed') : undefined}
       slotProps={{ htmlInput: { inputMode: 'decimal', step: 'any' } }}
+      disabled={disabled}
       onKeyDown={commitInputOnEnter}
       onBlur={(event) => {
         if (!event.target.value.trim()) return;
@@ -77,7 +79,7 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
     <Stack spacing={1.25}>
       <Divider />
       <Typography variant="subtitle2">{title}</Typography>
-      <FormControl size="small" fullWidth>
+      <FormControl size="small" fullWidth disabled={disabled}>
         <InputLabel shrink>{t('property.processMode')}</InputLabel>
         <Select
           value={mode ?? ''}
@@ -117,7 +119,7 @@ export function ProcessForm({ processes, supportsFill, onPatch, title }: Process
         (hatchSpacingUm) => ({ hatchSpacingUm }),
       )}
       {supportsFill && (
-        <FormControl size="small" fullWidth>
+        <FormControl size="small" fullWidth disabled={disabled}>
           <InputLabel shrink>{t('property.contourDirection')}</InputLabel>
           <Select
             value={direction ?? ''}
