@@ -26,9 +26,11 @@ if sys.platform == "win32":
         raise SystemExit("Windows icon is missing: packaging/icons/windows.ico")
     platform_excludes = ["PyQt5", "PyQt6", "PySide2", "PySide6", "cefpython3"]
     hidden_imports = ["clr"]
-    conda_ffi = Path(sys.executable).resolve().parent / "Library" / "bin" / "ffi.dll"
-    if conda_ffi.is_file():
-        extra_binaries.append((str(conda_ffi), "."))
+    conda_bin = Path(sys.executable).resolve().parent / "Library" / "bin"
+    for conda_dll in ("ffi.dll", "libcrypto-3-x64.dll", "libssl-3-x64.dll"):
+        source = conda_bin / conda_dll
+        if source.is_file():
+            extra_binaries.append((str(source), "."))
 elif sys.platform != "darwin" and linux_icon.is_file():
     extra_datas.append((str(linux_icon), "icons"))
 
